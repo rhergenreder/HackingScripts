@@ -6,6 +6,7 @@ This repository contains self-made and common scripts for information gathering,
 - first_scan.sh: Performs initial nmap scan (-A, -T5, -p-)
 - gobuster.sh: Performs gobuster dir scan with raft-large-words-lowercase.txt
 - ssh-check-username.py: Check if user enumeration works for ssh
+- GitHack.py
 
 ### Enumeration: Privilege Escalation
 - LinEnum.sh
