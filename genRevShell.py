@@ -51,7 +51,7 @@ if __name__ == "__main__":
         print("Supported types: bash, perl, python[2|3], php, ruby, netcat|nc, java, xterm")
         exit(1)
 
-    tty = "python -c 'import pty; pty.spawn(\"/bin/bash\")"
+    tty = "python -c 'import pty; pty.spawn(\"/bin/bash\")'"
     print("---PAYLOAD---\n%s\n---TTY---\n%s\n---------\n" % (payload, tty))
 
     if payload_type == "xterm":
