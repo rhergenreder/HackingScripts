@@ -3,7 +3,7 @@ import sys
 import netifaces as ni
 
 if len(sys.argv) < 2:
-    print("Usage: %s <file>" % sys.argv[0])
+    print("Usage: %s <file> [port]" % sys.argv[0])
     exit(1)
 
 # Create a TCP/IP socket
@@ -14,16 +14,17 @@ interface = "tun0"
 if not interface in ni.interfaces():
     interface = ni.interfaces()[0]
 
-
 addresses = ni.ifaddresses(interface)
 address = addresses[next(iter(addresses))][0]["addr"]
 
 # Bind the socket to the port
-server_address = (address, 8888)
-print('starting up on %s port %s' % server_address)
+port = 8888 if len(sys.argv) < 3 else int(sys.argv[2])
+server_address = (address, port)
 sock.bind(server_address)
-
 sock.listen(1)
+print("Now listening, download file using:")
+print('nc %s %d > %s' % (address, port, os.path.basename(FILENAME)))
+print()
 
 while True:
     # Wait for a connection
