@@ -7,19 +7,20 @@ This repository contains self-made and common scripts for information gathering,
 - gobuster.sh: Performs gobuster dir scan with raft-large-words-lowercase.txt
 - ssh-check-username.py: Check if user enumeration works for ssh
 - GitHack.py
+- [autorecon.py](https://github.com/Tib3rius/AutoRecon)
 
 ### Enumeration: Privilege Escalation
-- LinEnum.sh
-- linpeas.sh
+- [LinEnum.sh](https://github.com/rebootuser/LinEnum)
+- [linpeas.sh](https://github.com/carlospolop/privilege-escalation-awesome-scripts-suite)
 - lse.sh
 - unix-privesc-check.sh
-- uptux.py
-- pspy64
+- [uptux.py](https://github.com/initstring/uptux)
+- [pspy64](https://github.com/DominicBreuker/pspy)
 
 ### Reverse Shell: Payloads
 - genRevShell.py: Generates a reverse shell command (e.g. netcat, python, ...)
-- php-reverse-shell.php
-- p0wny-shell.php
+- [php-reverse-shell.php](https://github.com/pentestmonkey/php-reverse-shell)
+- [p0wny-shell.php](https://github.com/flozz/p0wny-shell)
 
 ### Miscellaneous
 - upload_file.py: Starts a local tcp server, for netcat usage
