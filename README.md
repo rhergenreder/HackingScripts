@@ -21,6 +21,8 @@ This repository contains self-made and common scripts for information gathering,
 - genRevShell.py: Generates a reverse shell command (e.g. netcat, python, ...)
 - [php-reverse-shell.php](https://github.com/pentestmonkey/php-reverse-shell)
 - [p0wny-shell.php](https://github.com/flozz/p0wny-shell)
+- [powercat.ps1][https://github.com/besimorhino/powercat]
 
 ### Miscellaneous
 - upload_file.py: Starts a local tcp server, for netcat usage
+- [padBuster.pl](https://github.com/AonCyberLabs/PadBuster)

