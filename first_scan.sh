@@ -22,4 +22,11 @@ if ! [[ $status == 0 ]] ; then
 fi
 
 echo "[+] Scanning for open ports…"
-nmap -A "${IP_ADDRESS}" -p 1-65535 -T 5 --stats-every 30s
+PORTS=$(nmap -p- --min-rate=1000 -T4 ${IP_ADDRESS} | grep ^[0-9] | cut -d '/' -f 1 | tr '\n' ',' | sed s/,$//)
+if [ -z "${PORTS}" ]; then
+    echo "[-] No open ports found"
+fi
+
+echo "[+] Open ports: ${PORTS}"
+echo "[+] Performing service scans…"
+nmap -A "${IP_ADDRESS}" -p$PORTS -T4 -v
