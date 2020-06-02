@@ -8,6 +8,7 @@ This repository contains self-made and common scripts for information gathering,
 - ssh-check-username.py: Check if user enumeration works for ssh
 - GitHack.py
 - [autorecon.py](https://github.com/Tib3rius/AutoRecon)
+- subdomainFuzz.sh: Fuzzes subdomains for a given domain
 
 ### Enumeration: Privilege Escalation
 - [LinEnum.sh](https://github.com/rebootuser/LinEnum)
@@ -25,4 +26,5 @@ This repository contains self-made and common scripts for information gathering,
 
 ### Miscellaneous
 - upload_file.py: Starts a local tcp server, for netcat usage
+- xss_handler.py: Starts a local http server and generates xss payload to steal cookies
 - [padBuster.pl](https://github.com/AonCyberLabs/PadBuster)
