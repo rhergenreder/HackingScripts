@@ -1,7 +1,8 @@
-import socket
+#!/usr/bin/python
+
 import sys
 import os
-import netifaces as ni
+import util
 
 if len(sys.argv) < 2:
     print("Usage: %s <file> [port]" % sys.argv[0])
@@ -9,22 +10,16 @@ if len(sys.argv) < 2:
 
 # Create a TCP/IP socket
 FILENAME = sys.argv[1]
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-interface = "tun0"
-if not interface in ni.interfaces():
-    interface = ni.interfaces()[0]
+# Bind the socket to the port or choose a random one
+address = util.getAddress()
+port = None if len(sys.argv) < 3 else int(sys.argv[2])
+sock = util.openServer(address, port)
+if not sock:
+    exit(1)
 
-addresses = ni.ifaddresses(interface)
-address = addresses[next(iter(addresses))][0]["addr"]
-
-# Bind the socket to the port
-port = 8888 if len(sys.argv) < 3 else int(sys.argv[2])
-server_address = (address, port)
-sock.bind(server_address)
-sock.listen(1)
 print("Now listening, download file using:")
-print('nc %s %d > %s' % (address, port, os.path.basename(FILENAME)))
+print('nc %s %d > %s' % (address, sock.getsockname()[1], os.path.basename(FILENAME)))
 print()
 
 while True:

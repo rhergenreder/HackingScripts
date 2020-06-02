@@ -3,16 +3,7 @@
 import socket
 import sys
 import subprocess
-import netifaces as ni
-
-def getLocalAddress():
-    interface = "tun0"
-    if not interface in ni.interfaces():
-        interface = ni.interfaces()[0]
-
-    addresses = ni.ifaddresses(interface)
-    address = addresses[next(iter(addresses))][0]["addr"]
-    return address
+import util
 
 def generatePayload(type, local_address, port):
 
@@ -38,14 +29,23 @@ def generatePayload(type, local_address, port):
 
 if __name__ == "__main__":
 
-    if len(sys.argv) < 3:
-        print("Usage: %s <type> <port>" % sys.argv[0])
+    if len(sys.argv) < 2:
+        print("Usage: %s <type> [port]" % sys.argv[0])
         exit(1)
 
-    listen_port = int(sys.argv[2])
+    listen_port = None if len(sys.argv) < 3 else int(sys.argv[2])
     payload_type = sys.argv[1].lower()
 
-    local_address = getLocalAddress()
+    local_address = util.getAddress()
+
+    # choose random port
+    if listen_port is None:
+        sock = util.openServer(local_address)
+        if not sock:
+            exit(1)
+        listen_port = sock.getsockname()[1]
+        sock.close()
+
     payload = generatePayload(payload_type, local_address, listen_port)
 
     if payload is None:
