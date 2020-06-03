@@ -1,0 +1,6 @@
+netifaces==0.10.9
+colorama==0.4.3
+requests==2.23.0
+toml==0.10.0
+paramiko==2.7.1
+beautifulsoup4==4.9.1

@@ -147,7 +147,7 @@ def calculate_elapsed_time(start_time):
     return ', '.join(elapsed_time)
 
 port_scan_profiles_config_file = 'port-scan-profiles.toml'
-with open(os.path.join(rootdir, 'config', port_scan_profiles_config_file), 'r') as p:
+with open(os.path.join(rootdir, 'autorecon_config', port_scan_profiles_config_file), 'r') as p:
     try:
         port_scan_profiles_config = toml.load(p)
 
@@ -157,13 +157,13 @@ with open(os.path.join(rootdir, 'config', port_scan_profiles_config_file), 'r') 
     except toml.decoder.TomlDecodeError as e:
         fail('Error: Couldn\'t parse {port_scan_profiles_config_file} config file. Check syntax and duplicate tags.')
 
-with open(os.path.join(rootdir, 'config', 'service-scans.toml'), 'r') as c:
+with open(os.path.join(rootdir, 'autorecon_config', 'service-scans.toml'), 'r') as c:
     try:
         service_scans_config = toml.load(c)
     except toml.decoder.TomlDecodeError as e:
         fail('Error: Couldn\'t parse service-scans.toml config file. Check syntax and duplicate tags.')
 
-with open(os.path.join(rootdir, 'config', 'global-patterns.toml'), 'r') as p:
+with open(os.path.join(rootdir, 'autorecon_config', 'global-patterns.toml'), 'r') as p:
     try:
         global_patterns = toml.load(p)
         if 'pattern' in global_patterns:
