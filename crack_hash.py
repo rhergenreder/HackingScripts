@@ -21,6 +21,7 @@ class HashType(enum.Enum):
     RAW_MD5 = 0
     MD5_PASS_SALT = 10
     MD5_SALT_PASS = 20
+    WORDPRESS = 400
 
     # SHA1
     RAW_SHA1 = 100
@@ -57,6 +58,11 @@ class HashType(enum.Enum):
     CRYPT_SHA512 = 1800
     CRYPT_APACHE = 1600
 
+    # Kerberos
+    KERBEROS_AS_REQ = 7500
+    KERBEROS_TGS_REP = 13100
+    KERBEROS_AS_REP = 18200
+
 class Hash:
 
     def __init__(self, hash):
@@ -84,6 +90,14 @@ class Hash:
                 self.type.append(HashType.CRYPT_SHA512)
             elif crypt_type == "apr1":
                 self.type.append(HashType.CRYPT_APACHE)
+            elif crypt_type == "krb5tgs":
+                self.type.append(HashType.KERBEROS_TGS_REP)
+            elif crypt_type == "krb5asreq":
+                self.type.append(HashType.KERBEROS_AS_REQ)
+            elif crypt_type == "krb5asrep":
+                self.type.append(HashType.KERBEROS_AS_REP)
+            elif crypt_type == "P":
+                self.type.append(HashType.WORDPRESS)
         else:
             self.isSalted = ":" in raw_hash
             if self.isSalted:
@@ -144,6 +158,7 @@ if len(sys.argv) < 2:
     exit(1)
 
 hashes = [Hash(x) for x in filter(None, [line.strip() for line in open(sys.argv[1],"r").readlines()])]
+wordlist = "/usr/share/wordlists/rockyou.txt" if len(sys.argv) < 3 else sys.argv[2]
 
 uncracked_hashes = { }
 for hash in hashes:
@@ -156,7 +171,7 @@ for hash in hashes:
 if len(uncracked_hashes) > 0:
     uncracked_types = list(uncracked_hashes.keys())
     num_types = len(uncracked_types)
-    if num_types > 0:
+    if num_types > 1:
         print("There are multiple uncracked hashes left with different hash types, choose one to proceed with hashcat:")
         print()
 
@@ -187,6 +202,6 @@ if len(uncracked_hashes) > 0:
         fp.write(b"%s\n" % hash.hash.encode("UTF-8"))
     fp.flush()
 
-    proc = subprocess.Popen(["hashcat", "-m", str(selected_type.value), "-a", "0", fp.name, "/usr/share/wordlists/rockyou.txt", "--force"])
+    proc = subprocess.Popen(["hashcat", "-m", str(selected_type.value), "-a", "0", fp.name, wordlist, "--force"])
     proc.wait()
     fp.close()

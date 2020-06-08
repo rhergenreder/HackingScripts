@@ -1,6 +1,7 @@
 import random
 import socket
 import netifaces as ni
+import sys
 
 def getAddress(interface="tun0"):
     if not interface in ni.interfaces():
@@ -35,3 +36,14 @@ def openServer(address, ports=None):
             if not retry:
                 print("Unable to listen on port %d: %s" % (listenPort, str(e)))
             raise e
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: %s [command]" % sys.argv[0])
+        exit(1)
+
+    if sys.argv[1] == "getAddress":
+        if len(sys.argv) > 2:
+            print(getAddress(sys.argv[2]))
+        else:
+            print(getAddress())
