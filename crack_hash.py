@@ -58,6 +58,9 @@ class HashType(enum.Enum):
     CRYPT_SHA512 = 1800
     CRYPT_APACHE = 1600
 
+    # Windows
+    NTLM = 1000
+
     # Kerberos
     KERBEROS_AS_REQ = 7500
     KERBEROS_TGS_REP = 13100
@@ -128,13 +131,13 @@ class Hash:
                 else:
                     self.type.append(HashType.RAW_MD5)
                     self.type.append(HashType.RAW_MD4)
+                    self.type.append(HashType.NTLM)
             elif hash_len == 40:
                 if self.isSalted:
                     self.type.append(HashType.SHA1_PASS_SALT)
                     self.type.append(HashType.SHA1_SALT_PASS)
                 else:
                     self.type.append(HashType.RAW_SHA1)
-                    self.type.append(HashType.RAW_MD4)
                     self.type.append(HashType.RAW_RIPEMD_160)
             elif hash_len == 96:
                 if not self.isSalted:
