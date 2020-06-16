@@ -548,8 +548,8 @@ if __name__ == '__main__':
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     # fetch everything
-    code = fetch_git(args.url, args.directory, args.jobs, args.retry, args.timeout)
     path = os.path.realpath(args.directory)
+    code = fetch_git(args.url, args.directory, args.jobs, args.retry, args.timeout)
     if not os.listdir(path):
         os.rmdir(path)
 
