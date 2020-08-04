@@ -101,7 +101,7 @@ if __name__ == "__main__":
 
     command = sys.argv[1]
     if command == "getAddress":
-        if len(sys.argv) >= 2:
+        if len(sys.argv) >= 3:
             print(getAddress(sys.argv[2]))
         else:
             print(getAddress())

@@ -25,6 +25,7 @@ echo "[+] Scanning for open ports…"
 PORTS=$(nmap -p- --min-rate=1000 -T4 ${IP_ADDRESS} | grep ^[0-9] | cut -d '/' -f 1 | tr '\n' ',' | sed s/,$//)
 if [ -z "${PORTS}" ]; then
     echo "[-] No open ports found"
+    exit
 fi
 
 echo "[+] Open ports: ${PORTS}"
