@@ -70,9 +70,8 @@ class Stack:
 
         return addr
 
-def genSyscall(elf, syscall, registers):
+def setRegisters(elf, registers):
     rop = ROP(elf)
-    registers["rax"] = syscall
     for t in rop.setRegisters(registers):
         value = t[0]
         gadget = t[1]
@@ -83,7 +82,11 @@ def genSyscall(elf, syscall, registers):
                     rop.raw(registers[reg])
                 else:
                     rop.raw(0)
+    return rop
 
+def genSyscall(elf, syscall, registers):
+    registers["rax"] = syscall
+    rop = setRegisters(elf, registers)
     syscall_gadget = "syscall" if elf.arch == "amd64" else "int 0x80"
     rop.raw(rop.find_gadget([syscall_gadget]).address)
     return rop
