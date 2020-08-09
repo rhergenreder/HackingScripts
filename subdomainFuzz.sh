@@ -23,4 +23,6 @@ charcount=$(curl -s -L $DOMAIN | wc -m)
 echo "[+] Chars: ${charcount}"
 echo "[ ] Fuzzing…"
 
-wfuzz --hh ${charcount} --ip "${IP_ADDRESS}" --hc 400,500 -w /usr/share/wordlists/SecLists/Discovery/Web-Content/raft-large-words-lowercase.txt "http://FUZZ.${DOMAIN}"
+ffuf --fs ${charcount} --fc 400,500 \
+  -w /usr/share/wordlists/SecLists/Discovery/Web-Content/raft-large-words-lowercase.txt \
+  -u "http://${IP_ADDRESS}" -H "Host: FUZZ.${DOMAIN}"
