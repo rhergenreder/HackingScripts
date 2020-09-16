@@ -89,6 +89,7 @@ class WebServicecFinder:
         self.analyseHtml(startPage)
         self.analyseRobots()
         self.analyseSitemap()
+        self.analyseChangelog()
 
     def analyseHeaders(self, res):
         phpFound = False
@@ -141,7 +142,8 @@ class WebServicecFinder:
 
         meta_generator = soup.find("meta", {"name":"generator"})
         if meta_generator:
-            print("[+] Meta Generator:", meta_generator["content"].strip())
+            banner = meta_generator["content"].strip()
+            print("[+] Meta Generator:", banner)
 
         footer = soup.find("footer")
         if footer:
@@ -174,9 +176,27 @@ class WebServicecFinder:
 
     def analyseSitemap(self):
         res = self.do_get("/sitemap.xml", allow_redirects=False)
-        if res.status_code in (301,302,404,403):
+        if res.status_code != 200:
             print("[-] sitemap.xml not found or inaccessible")
             return False
+
+    def analyseChangelog(self):
+
+        drupal_pattern = re.compile("^Drupal ([0-9.]+),")
+        drupal_found = False
+
+        changelog_files = ["CHANGELOG", "CHANGELOG.txt"]
+        for file in changelog_files:
+            res = self.do_get(file, allow_redirects=False)
+            if res.status_code != 200:
+                continue
+
+            print("[+] Found:", file)
+            for line in res.text.split("\n"):
+                line = line.strip()
+                if not drupal_found and self.printMatch("Drupal", drupal_pattern.search(line)):
+                    drupal_found = True
+
 
 def banner():
     print("""
