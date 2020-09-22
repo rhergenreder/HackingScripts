@@ -5,6 +5,7 @@ import sys
 import argparse
 import requests
 import urllib.parse
+from hackingscripts import util
 from bs4 import BeautifulSoup
 
 class WebServicecFinder:
@@ -108,19 +109,6 @@ class WebServicecFinder:
             return True
         return False
 
-    def collectUrls(self, soup):
-        urls = set()
-        attrs = ["src","href"]
-        tags = ["a","link","script","img"]
-
-        for tag in tags:
-            for e in soup.find_all(tag):
-                for attr in attrs:
-                    if e.has_attr(attr):
-                        urls.add(e[attr])
-
-        return urls
-
     def retrieveMoodleVersion(self, v):
         res = requests.get("https://docs.moodle.org/dev/Releases")
         soup = BeautifulSoup(res.text, "html.parser")
@@ -158,9 +146,9 @@ class WebServicecFinder:
         moodle_pattern_1 = re.compile(r"^https://download.moodle.org/mobile\?version=(\d+)(&|$)")
         moodle_pattern_2 = re.compile(r"^https://docs.moodle.org/(\d+)/")
         litecart_pattern = re.compile(r"^https://www.litecart.net")
-        wordpress_pattern = re.compile(r"/wp-(admin|includes|content)/(([^/]+)/)*(wp-emoji-release.min.js|block-library/style.min.css)\?ver=([0-9.]+)(&|$)")
+        wordpress_pattern = re.compile(r"/wp-(admin|includes|content)/(([^/]+)/)*(wp-emoji-release.min.js|style.min.css)\?ver=([0-9.]+)(&|$)")
 
-        urls = self.collectUrls(soup)
+        urls = util.collectUrls(soup)
         for url in urls:
             self.printMatch("Moodle", moodle_pattern_1.search(url), version_func=lambda v: self.retrieveMoodleVersion(int(v)))
             self.printMatch("Moodle", moodle_pattern_2.search(url), version_func=lambda v: "%d.%d" % (int(v)//10,int(v)%10))
@@ -170,7 +158,7 @@ class WebServicecFinder:
 
     def analyseRobots(self):
         res = self.do_get("/robots.txt", allow_redirects=False)
-        if res.status_code in (301,302,404,403):
+        if res.status_code != 200:
             print("[-] robots.txt not found or inaccessible")
             return False
 

