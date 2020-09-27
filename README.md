@@ -27,8 +27,6 @@ Can be deployed on victim machines to scan the intranet.
 - genRevShell.py: Generates a reverse shell command (e.g. netcat, python, ...)
 - [php-reverse-shell.php](https://github.com/pentestmonkey/php-reverse-shell)
 - [p0wny-shell.php](https://github.com/flozz/p0wny-shell)
-- [powercat.ps1](https://github.com/besimorhino/powercat)
-- [aspx-reverse-shell.aspx](https://github.com/borjmz/aspx-reverse-shell)
 
 ### Miscellaneous
 - upload_file.py: Starts a local tcp server, for netcat usage
@@ -36,5 +34,15 @@ Can be deployed on victim machines to scan the intranet.
 - [padBuster.pl](https://github.com/AonCyberLabs/PadBuster)
 - sql.php: Execute sql queries passed via GET/POST
 - util.py: Collection of some small functions
+- fileserver.py: Create a temporary http server serving in-memory files
 
 ### Windows
+ - nc.exe/nc64.exe: netcat standalone binary
+ - [mimikatz.exe](https://github.com/gentilkiwi/mimikatz)
+ - [plink.exe](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html): command line PuTTY client for port forwarding
+ - [powercat.ps1](https://github.com/besimorhino/powercat)
+ - [winPEAS.bat](https://github.com/carlospolop/privilege-escalation-awesome-scripts-suite)
+ - PowerView.ps1
+ - [SharpHound.exe](https://github.com/BloodHoundAD/SharpHound3): BloodHound Ingestor
+ - [windows-exploit-suggester.py](https://github.com/AonCyberLabs/Windows-Exploit-Suggester)
+ - [aspx-reverse-shell.aspx](https://github.com/borjmz/aspx-reverse-shell)
