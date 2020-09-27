@@ -8,7 +8,9 @@ import urllib.parse
 from hackingscripts import util
 from bs4 import BeautifulSoup
 
-class WebServicecFinder:
+requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
+
+class WebServiceFinder:
 
     def __init__(self, args):
         self.parseUrl(args.url)
@@ -52,7 +54,7 @@ class WebServicecFinder:
         if self.verbose:
             sys.stdout.write("GET %s: " % uri)
 
-        res = self.session.get(uri, headers=self.headers, cookies=self.cookies, **args)
+        res = self.session.get(uri, headers=self.headers, cookies=self.cookies, verify=False, **args)
         if self.verbose:
             sys.stdout.write("%d %s\n" % (res.status_code, res.reason))
 
@@ -87,7 +89,11 @@ class WebServicecFinder:
                 break
 
         self.analyseHeaders(startPage)
-        self.analyseHtml(startPage)
+        if "text/html" in startPage.headers["Content-Type"]:
+            self.analyseHtml(startPage)
+        elif "text/xml" in startPage.headers["Content-Type"]:
+            self.analyseXml(startPage)
+
         self.analyseRobots()
         self.analyseSitemap()
         self.analyseChangelog()
@@ -124,6 +130,19 @@ class WebServicecFinder:
                 break
 
         return "%s (%d)" % (versionStr, v)
+
+    def analyseXml(self,res):
+        soup = BeautifulSoup(res.text, "lxml")
+
+        title = soup.find("title")
+        if title:
+            print("[+] Found XML title:", title.text.strip())
+
+        generator = soup.find("generator")
+        if generator:
+            if generator.has_attr("version"):
+                print("[+] Found XML Generator version:", generator["version"])
+
 
     def analyseHtml(self, res):
         soup = BeautifulSoup(res.text, "html.parser")
@@ -208,5 +227,5 @@ if __name__ == "__main__":
 
     banner()
 
-    client = WebServicecFinder(args)
+    client = WebServiceFinder(args)
     client.scan()
