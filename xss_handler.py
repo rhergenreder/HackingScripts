@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import util
+from hackingscripts import util
 import sys
 import http.server
 import socketserver
@@ -46,8 +46,23 @@ class XssServer(BaseHTTPRequestHandler):
     def do_HEAD(self):
         self._set_headers()
 
+    def end_headers(self):
+        self.send_header('Access-Control-Allow-Origin', '*')
+        BaseHTTPRequestHandler.end_headers(self)
+
+    def do_OPTIONS(self):
+        self.send_response(200, "ok")
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        # self.send_header("Access-Control-Allow-Headers", "X-Requested-With")
+        # self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
     def do_POST(self):
         self._set_headers()
+        content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
+        post_data = self.rfile.read(content_length)
+        print(post_data)
         self.wfile.write(self._html())
 
 if __name__ == "__main__":
