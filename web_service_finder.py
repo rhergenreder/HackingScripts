@@ -97,6 +97,16 @@ class WebServiceFinder:
         self.analyseRobots()
         self.analyseSitemap()
         self.analyseChangelog()
+        self.checkJoomlaVersion()
+
+    def checkJoomlaVersion(self):
+        url = "/administrator/manifests/files/joomla.xml"
+        res = self.do_get(url)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, "lxml")
+            extension = soup.find("extension")
+            if extension and extension.has_attr("version"):
+                print("[+] Found Joomla version:", extension["version"])
 
     def analyseHeaders(self, res):
         phpFound = False
