@@ -8,7 +8,7 @@ from importlib import util
 threading_spec = util.find_spec("threading")
 queue_spec = util.find_spec("queue")
 
-if threading_spec is not None:
+if threading_spec is not None and queue_spec is not None:
     import threading
     import queue
     NUM_THREADS = 10
