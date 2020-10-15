@@ -4,15 +4,21 @@ from hackingscripts import util
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import threading
 import sys
+import os
+import ssl
 
 class FileServerRequestHandler(BaseHTTPRequestHandler):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def do_POST(self):
+        self.do_GET()
+
     def do_GET(self):
-        if self.path in self.server.files:
-            data = self.server.files[self.path]
+        path = self.path if "?" not in self.path else self.path[0:self.path.find("?")]
+        if path in self.server.files:
+            data = self.server.files[path]
             self.send_response(200)
             self.end_headers()
             self.wfile.write(data)
@@ -20,14 +26,30 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
+        if path in self.server.dumpRequests:
+            contentLength = self.headers.get('Content-Length')
+            body = None
+
+            if contentLength and int(contentLength) > 0:
+                body = self.rfile.read(int(contentLength))
+
+            print("==========")
+            print(str(self.headers).strip())
+            if body:
+                print()
+                print(body)
+            print("==========")
+
     def log_message(self, format, *args):
         if self.server.logRequests:
-            BaseHTTPRequestHandler.log_message(format, *args)
+            # BaseHTTPRequestHandler.log_message(format, *args)
+            super().log_message(format, *args)
 
 class HttpFileServer(HTTPServer):
     def __init__(self, addr, port):
         super().__init__((addr, port), FileServerRequestHandler)
         self.logRequests = False
+        self.dumpRequests = []
         self.files = { }
 
     def addFile(self, name, data):
@@ -43,6 +65,34 @@ class HttpFileServer(HTTPServer):
         if not name.startswith("/"):
             name = "/" + name
         self.files[name.strip()] = data
+
+    def dumpRequest(self, name):
+        if not name.startswith("/"):
+            name = "/" + name
+        self.dumpRequests.append(name)
+
+    def enableLogging(self):
+        self.logRequests = True
+
+    def enableSSL(self, keyFile=None, certFile=None):
+        if keyFile is None:
+            print("Generating certificate…")
+            os.system("openssl req -new -x509 -keyout private.key -out server.crt -days 365 -nodes")
+            certFile = "server.crt"
+            keyFile = "private.key"
+
+        self.socket = ssl.wrap_socket(self.socket,
+            server_side=True,
+            certfile=certFile,
+            keyfile=keyFile,
+            ssl_version=ssl.PROTOCOL_TLS,
+            cert_reqs=ssl.CERT_NONE)
+
+        # try:
+        #     ssl._create_default_https_context = ssl._create_unverified_context
+        # except AttributeError:
+        #     print("Legacy Python that doesn't verify HTTPS certificates by default")
+        #     pass
 
     def startBackground(self):
         t = threading.Thread(target=self.serve_forever)
