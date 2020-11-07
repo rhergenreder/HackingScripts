@@ -167,6 +167,9 @@ class Hash:
             elif hash_len == 140:
                 if not self.isSalted:
                     seld.type.append(HashType.MSSQL)
+                    self.hash = "0x" + raw_hash # TODO: MSSQL requires 0x prefix..
+        elif raw_hash.startswith("0x") and HEX_PATTERN.match(raw_hash[2:]) and len(raw_hash) == 140+2:
+            seld.type.append(HashType.MSSQL)
 
         if len(self.type) == 0:
             print("%s: Unknown hash" % self.hash)
