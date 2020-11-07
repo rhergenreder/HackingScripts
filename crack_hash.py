@@ -63,6 +63,7 @@ class HashType(enum.Enum):
     # Windows
     LM   = 3000
     NTLM = 1000
+    MSSQL = 1731
 
     # Kerberos
     KERBEROS_AS_REQ = 7500
@@ -163,6 +164,9 @@ class Hash:
                     self.type.append(HashType.RAW_SHA2_512)
                     self.type.append(HashType.RAW_SHA3_512)
                     self.type.append(HashType.RAW_KECCAK_256)
+            elif hash_len == 140:
+                if not self.isSalted:
+                    seld.type.append(HashType.MSSQL)
 
         if len(self.type) == 0:
             print("%s: Unknown hash" % self.hash)
@@ -216,6 +220,6 @@ if len(uncracked_hashes) > 0:
         fp.write(b"%s\n" % hash.hash.encode("UTF-8"))
     fp.flush()
 
-    proc = subprocess.Popen(["hashcat", "-m", str(selected_type.value), "-a", "0", fp.name, wordlist, "--force"])
+    proc = subprocess.Popen(["hashcat", "-m", str(selected_type.value), "-a", "0", fp.name, wordlist])
     proc.wait()
     fp.close()

