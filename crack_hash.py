@@ -22,6 +22,7 @@ class HashType(enum.Enum):
     MD5_PASS_SALT = 10
     MD5_SALT_PASS = 20
     WORDPRESS = 400
+    DRUPAL7 = 7900
 
     # SHA1
     RAW_SHA1 = 100
@@ -104,6 +105,8 @@ class Hash:
                 self.type.append(HashType.KERBEROS_AS_REP)
             elif crypt_type == "P":
                 self.type.append(HashType.WORDPRESS)
+            elif crypt_type == "S":
+                self.type.append(HashType.DRUPAL7)
         else:
             self.isSalted = ":" in raw_hash
             if self.isSalted:
