@@ -162,6 +162,11 @@ class WebServiceFinder:
             banner = meta_generator["content"].strip()
             print("[+] Meta Generator:", banner)
 
+        body = soup.find("body")
+        if body:
+            gitea_pattern = re.compile(r"Gitea Version: ([0-9\.]*)")
+            self.printMatch("Gitea", gitea_pattern.search(body.text))
+
         footer = soup.find("footer")
         if footer:
             content = footer.text.strip()
