@@ -2,12 +2,13 @@
 
 from hackingscripts import util
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from . import xss_handler
 import threading
 import requests
 import sys
 import os
 import ssl
-import xss_handler
+# import xss_handler
 
 class FileServerRequestHandler(BaseHTTPRequestHandler):
 

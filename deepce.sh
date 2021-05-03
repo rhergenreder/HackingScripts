@@ -57,14 +57,14 @@ Usage: ${0##*/} [OPTIONS...]
 
   --install              Install useful packages before running script, this will maximise enumeration and exploitation potential
 
-  -doc, --delete-on-complete Script will delete itself on completion
+  -doc, --delete         Script will delete itself on completion
 
   ${DG}[Exploits]$NC
   -e, --exploit          Use one of the following exploits (eg. -e SOCK)
 
-    DOCKER         use docker command to create new contains and mount root partition to priv esc
-    PRIVILEGED     exploit a container with privileged mode to run commands on the host
-    SOCK           use an exposed docker sock to create a new container and mount root partition to priv esc
+    DOCKER               use docker command to create new contains and mount root partition to priv esc
+    PRIVILEGED           exploit a container with privileged mode to run commands on the host
+    SOCK                 use an exposed docker sock to create a new container and mount root partition to priv esc
     CVE-2019-5746
     CVE-2019-5021
 
@@ -119,12 +119,14 @@ See ${UNDERLINED}https://stealthcopter.github.io/deepce/guides/docker-group.md${
 TIP_DOCKER_CMD="If we have permission to create new docker containers we can mount the host's root partition and chroot into it and execute commands on the host OS."
 TIP_PRIVILEGED_MODE="The container appears to be running in privilege mode, we should be able to access the raw disks and mount the hosts root partition in order to gain code execution.
 See ${UNDERLINED}https://stealthcopter.github.io/deepce/guides/docker-privileged.md${NC}"
+TIP_DOCKER_ROOTLESS="In rootless mode privilege escalation to root will not be possible."
 
 TIP_CVE_2019_5021="Alpine linux version 3.3.x-3.5.x accidentally allow users to login as root with a blank password, if we have command execution in the container we can become root using su root"
 TIP_CVE_2019_13139="Docker versions before 18.09.4 are vulnerable to a command execution vulnerability when parsing URLs"
 TIP_CVE_2019_5736="Docker versions before 18.09.2 are vulnerable to a container escape by overwriting the runC binary"
 
 DANGEROUS_GROUPS="docker\|lxd\|root\|sudo\|wheel"
+DANGEROUS_CAPABILITIES="cap_sys_admin\|cap_sys_ptrace\|cap_sys_module\|dac_read_search\|dac_override"
 
 CONTAINER_CMDS="docker lxc rkt kubectl podman"
 USEFUL_CMDS="curl wget gcc nc netcat ncat jq nslookup host hostname dig python python2 python3 nmap"
@@ -136,7 +138,7 @@ USEFUL_CMDS="curl wget gcc nc netcat ncat jq nslookup host hostname dig python p
 # Convert version numbers into a regular number so we can do simple comparisons (use floats because sh can interpret 0 prefix numbers incorrectly otherwise).
 # shellcheck disable=SC2046
 # shellcheck disable=SC2183 # word splitting here is on purpose
-ver() { printf "%03.0f%03.0f%03.0f" $(echo "$1" | tr '.' ' '); }
+ver() { printf "%03.0f%03.0f%03.0f" $(echo "$1" | tr '.' ' ' | cut -d '-' -f1); }
 
 ###########################################
 #--------------) Printing (---------------#
@@ -272,7 +274,7 @@ installPackages() {
         return
     fi
 
-    if apt install --no-install-recommends --force-yes -y dnsutils curl nmap iputils-ping >/dev/null 2>&1; then
+    if apt install --no-install-recommends --force-yes -y dnsutils curl nmap iputils-ping libcap2-bin >/dev/null 2>&1; then
         printSuccess "Success"
     else
         printError "Failed"
@@ -280,13 +282,13 @@ installPackages() {
 
   elif [ -x "$(command -v apk)" ]; then
     # Alpine
-    apk add bind-tools curl nmap
+    apk add bind-tools curl nmap libcap
   elif [ -x "$(command -v yum)" ]; then
     # CentOS / Fedora
-    yum install bind-utils curl nmap
+    yum install bind-utils curl nmap libcap
   elif [ -x "$(command -v apt-get)" ]; then
     # Old Debian
-    apt-get install -y dnsutils curl nmap
+    apt-get install -y dnsutils curl nmap inetutils-ping libcap2-bin
   fi
 }
 
@@ -389,39 +391,37 @@ dockerSockCheck() {
   if [ "$dockerSockPath" ]; then
 
     printInfo "$(ls -lah $dockerSockPath)"
-    nl
 
     # Is docker sock writable
     printQuestion "Sock is writable ........"
     if test -r "$dockerSockPath"; then
       printYesEx
       printTip "$TIP_WRITABLE_SOCK"
+      if [ -x "$(command -v curl)" ]; then
+        sockInfoCmd="curl -s --unix-socket $dockerSockPath http://localhost/info"
+        sockInfoRepsonse="$($sockInfoCmd)"
+
+        printTip "To see full info from the docker sock output run the following"
+        printStatus "$sockInfoCmd"
+        nl
+
+        # Docker version unknown lets get it from the sock
+        if [ -z "$dockerVersion" ]; then
+          # IF jq...
+          #dockerVersion=`$sockInfoCmd | jq -r '.ServerVersion'`
+          dockerVersion=$(echo "$sockInfoRepsonse" | tr ',' '\n' | grep 'ServerVersion' | cut -d'"' -f 4)
+        fi
+
+        # Get info from sock
+        info=$(echo "$sockInfoRepsonse" | tr ',' '\n' | grep "$GREP_SOCK_INFOS" | grep -v "$GREP_SOCK_INFOS_IGNORE" | tr -d '"')
+
+        printInfo "$info"
+      else
+        printError "Could not interact with the docker sock, as curl is not installed"
+        printInstallAdvice "curl"
+      fi
     else
       printNo
-    fi
-
-    if [ -x "$(command -v curl)" ]; then
-      sockInfoCmd="curl -s --unix-socket $dockerSockPath http://localhost/info"
-      sockInfoRepsonse="$($sockInfoCmd)"
-
-      printTip "To see full info from the docker sock output run the following"
-      printStatus "$sockInfoCmd"
-      nl
-
-      # Docker version unknown lets get it from the sock
-      if [ -z "$dockerVersion" ]; then
-        # IF jq...
-        #dockerVersion=`$sockInfoCmd | jq -r '.ServerVersion'`
-        dockerVersion=$(echo "$sockInfoRepsonse" | tr ',' '\n' | grep 'ServerVersion' | cut -d'"' -f 4)
-      fi
-
-      # Get info from sock
-      info=$(echo "$sockInfoRepsonse" | tr ',' '\n' | grep "$GREP_SOCK_INFOS" | grep -v "$GREP_SOCK_INFOS_IGNORE" | tr -d '"')
-
-      printInfo "$info"
-    else
-      printError "Could not interact with the docker sock, as curl is not installed"
-      printInstallAdvice "curl"
     fi
   fi
 }
@@ -432,6 +432,7 @@ enumerateContainer() {
   containerName
   containerIPs
   getContainerInformation
+  containerCapabilities
   containerServices
   containerPrivileges
   containerExploits
@@ -546,6 +547,21 @@ getContainerInformation() {
   printResultLong "Useful tools installed .." "$(echo $tools | tr ' ' '\n')"
 }
 
+containerCapabilities() {
+  printQuestion "Dangerous Capabilities .."
+  if [ -x "$(command -v capsh)" ]; then
+    if capsh --print| grep -q "$DANGEROUS_CAPABILITIES"; then
+        caps=$(capsh --print |grep 'cap_' | sed "s/\($DANGEROUS_CAPABILITIES\)/${LG}${EX}&${NC}${DG}/g")
+        printYes
+        printStatus "$caps"
+    else
+        printNo
+    fi
+  else
+    printError "Unknown (capsh not installed)"
+  fi
+}
+
 containerServices() {
   # SSHD
 
@@ -572,7 +588,6 @@ containerServices() {
 }
 
 containerPrivileges() {
-
   printQuestion "Privileged Mode ........."
   if [ -x "$(command -v fdisk)" ]; then
     if [ "$(fdisk -l 2>/dev/null | wc -l)" -gt 0 ]; then
@@ -584,7 +599,6 @@ containerPrivileges() {
   else
     printError "Unknown"
   fi
-
 }
 
 containerExploits() {
@@ -756,7 +770,7 @@ findInterestingFiles() {
   printStatus "$boringVars"
 
   # Any common entrypoint files etc?
-  entrypoint=$(ls -lah /entrypoint.sh /deploy 2>/dev/null)
+  entrypoint=$(ls -lah /*.sh /*entrypoint* /**/entrypoint* /**/*.sh /deploy* 2>/dev/null)
   printResultLong "Any common entrypoint files ........." "$entrypoint"
 
   # Any files in root dir
@@ -791,7 +805,7 @@ findInterestingFiles() {
     printStatus "$hashes"
   elif test -r /etc/shadow; then
     # Cannot check...
-    printFail "No permission"
+    printFail "No permissions"
   else
     printNo
   fi
@@ -809,14 +823,27 @@ findInterestingFiles() {
 
 }
 
+checkDockerRootless() {
+  printQuestion "Rootless ................"
+  if docker info 2>/dev/null|grep -q rootless; then
+    printYes
+    printTip "$TIP_DOCKER_ROOTLESS"
+  else
+    printNo
+  fi
+}
+
 getDockerVersion() {
   printQuestion "Docker Executable ......."
   if [ "$(command -v docker)" ]; then
     dockerCommand="$(command -v docker)"
     dockerVersion="$(docker -v | cut -d',' -f1 | cut -d' ' -f3)"
+
     printSuccess "$dockerCommand"
     printQuestion "Docker version .........."
     printSuccess "$dockerVersion"
+
+    checkDockerRootless
 
     printQuestion "User in Docker group ...."
     if groups | grep -q '\bdocker\b'; then
@@ -832,7 +859,7 @@ getDockerVersion() {
 
 checkDockerVersionExploits() {
   # Check version for known exploits
-  printResult "Docker Exploits ........." "$dockerVersion" "Version Unknown"
+  printResult "Docker Version .........." "$dockerVersion" "Version Unknown"
   if ! [ "$dockerVersion" ]; then
     return
   fi
@@ -949,6 +976,8 @@ exploitDocker() {
     printError "Docker command not found, but required for this exploit"
     exit
   fi
+
+  checkDockerRootless
 
   prepareExploit
   printQuestion "Exploiting"

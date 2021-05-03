@@ -153,7 +153,6 @@ class WebServiceFinder:
             if generator.has_attr("version"):
                 print("[+] Found XML Generator version:", generator["version"])
 
-
     def analyseHtml(self, res):
         soup = BeautifulSoup(res.text, "html.parser")
 
@@ -176,6 +175,14 @@ class WebServiceFinder:
 
             self.printMatch("Gogs", gogs_pattern.search(content), 2)
             self.printMatch("Go", go_pattern.search(content), 2)
+
+        versionInfo = soup.find("div", {"class": "versionInfo"})
+        if versionInfo:
+            content = versionInfo.text.strip()
+
+            cacti_pattern = re.compile(r"Version ([0-9.]*) .* The Cacti Group")
+            self.printMatch("Cacti", cacti_pattern.search(content), 1)
+
 
         moodle_pattern_1 = re.compile(r"^https://download.moodle.org/mobile\?version=(\d+)(&|$)")
         moodle_pattern_2 = re.compile(r"^https://docs.moodle.org/(\d+)/")
