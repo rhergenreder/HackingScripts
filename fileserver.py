@@ -50,6 +50,7 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
                 body = self.rfile.read(int(contentLength))
 
             print("==========")
+            print("%s %s %s" % (self.command, self.path, self.request_version))
             print(str(self.headers).strip())
             if body:
                 print()

