@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-from hackingscripts import util
+from hackingscripts import util, xss_handler
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from . import xss_handler
 import threading
 import requests
 import sys

@@ -23,6 +23,7 @@ location=$(curl -s -I https://github.com/jpillora/chisel/releases/latest | grep 
 if [[ "$location" =~ ^https://github.com/jpillora/chisel/releases/tag/v(.*) ]]; then
   chisel_version=${BASH_REMATCH[1]}
   chisel_version=${chisel_version%%[[:space:]]}
+  echo "Got Chisel version: ${chisel_version}"
   curl -s -L "https://github.com/jpillora/chisel/releases/download/v${chisel_version}/chisel_${chisel_version}_linux_386.gz"    | gzip -d > chisel
   curl -s -L "https://github.com/jpillora/chisel/releases/download/v${chisel_version}/chisel_${chisel_version}_linux_amd64.gz"  | gzip -d > chisel64
   curl -s -L "https://github.com/jpillora/chisel/releases/download/v${chisel_version}/chisel_${chisel_version}_windows_386.gz"  | gzip -d > win/chisel.exe
