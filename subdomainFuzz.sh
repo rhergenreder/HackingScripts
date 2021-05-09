@@ -26,10 +26,11 @@ IP_ADDRESS=$(echo $output | head -n 1 |  awk '{print $NF}')
 echo "[+] IP-Address: ${IP_ADDRESS}"
 
 echo "[ ] Retrieving default site…"
-charcount=$(curl -s -L "${PROTOCOL}://${DOMAIN}" -k | wc -m)
-echo "[+] Chars: ${charcount}"
+charcountDomain=$(curl -s -L "${PROTOCOL}://${DOMAIN}" -k | wc -m)
+charcountIpAddress=$(curl -s -L "${PROTOCOL}://${IP_ADDRESS}" -k | wc -m)
+echo "[+] Chars: ${charcountDomain} and ${charcountIpAddress}"
 echo "[ ] Fuzzing…"
 
-ffuf --fs ${charcount} --fc 400,500 \
+ffuf --fs ${charcountDomain},${charcountIpAddress} --fc 400,500 --mc all \
   -w /usr/share/wordlists/SecLists/Discovery/Web-Content/raft-large-words-lowercase.txt \
   -u "${PROTOCOL}://${IP_ADDRESS}" -H "Host: FUZZ.${DOMAIN}"
