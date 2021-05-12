@@ -2,10 +2,11 @@
 
 import re
 import sys
+import json
 import argparse
 import requests
 import urllib.parse
-from hackingscripts import util
+import util
 from bs4 import BeautifulSoup
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
@@ -98,6 +99,18 @@ class WebServiceFinder:
         self.analyseSitemap()
         self.analyseChangelog()
         self.checkJoomlaVersion()
+        self.checkManifest()
+
+    def checkManifest(self):
+        url = "/static/manifest.json"
+        res = self.do_get(url)
+        if res.status_code == 200:
+            try:
+                manifest = json.loads(res.text)
+                if "name" in manifest:
+                    print("[+] Found manifest name:", manifest["name"])
+            except:
+                pass
 
     def checkJoomlaVersion(self):
         url = "/administrator/manifests/files/joomla.xml"
@@ -120,7 +133,7 @@ class WebServiceFinder:
 
     def printMatch(self, title, match, group=1, version_func=str):
         if match:
-            version = "Unknown version" if group is None else version_func(match.group(group))
+            version = "Unknown version" if group is None or len(match.groups()) <= group else version_func(match.group(group))
             print("[+] Found %s: %s" % (title, version))
             return True
         return False
@@ -183,6 +196,12 @@ class WebServiceFinder:
             cacti_pattern = re.compile(r"Version ([0-9.]*) .* The Cacti Group")
             self.printMatch("Cacti", cacti_pattern.search(content), 1)
 
+        poweredBy = soup.find(id="poweredBy")
+        if poweredBy:
+            content = poweredBy.text.strip()
+
+            osticket_pattern = re.compile(r"powered by osTicket")
+            self.printMatch("OsTicket", osticket_pattern.search(content))
 
         moodle_pattern_1 = re.compile(r"^https://download.moodle.org/mobile\?version=(\d+)(&|$)")
         moodle_pattern_2 = re.compile(r"^https://docs.moodle.org/(\d+)/")

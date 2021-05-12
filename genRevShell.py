@@ -2,8 +2,8 @@
 
 import socket
 import sys
-import util
 import pty
+import util
 
 def generatePayload(type, local_address, port):
 

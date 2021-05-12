@@ -171,13 +171,13 @@ def process_tasks(initial_tasks, worker, jobs, args=(), tasks_done=None):
 class DownloadWorker(Worker):
     ''' Download a list of files '''
 
-    def init(self, url, directory, retry, timeout, module):
+    def init(self, url, directory, retry, timeout, module=None):
         self.session = requests.Session()
         self.session.verify = False
         self.session.mount(url, requests.adapters.HTTPAdapter(max_retries=retry))
         self.module = module
 
-    def do_task(self, filepath, url, directory, retry, timeout, module):
+    def do_task(self, filepath, url, directory, retry, timeout, module=None):
         with closing(self.session.get('%s/%s' % (url, filepath),
                                       allow_redirects=False,
                                       stream=True,

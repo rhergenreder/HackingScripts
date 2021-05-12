@@ -1,18 +1,21 @@
 #!/usr/bin/env python
 
-from hackingscripts import util, xss_handler
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import threading
 import requests
 import sys
 import os
 import ssl
-# import xss_handler
+import util
+import xss_handler
 
 class FileServerRequestHandler(BaseHTTPRequestHandler):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    def do_HEAD(self):
+        self.do_GET()
 
     def do_POST(self):
         self.do_GET()
@@ -35,7 +38,7 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
             self.send_response(code)
             self.end_headers()
 
-            if data:
+            if data and self.command != "HEAD":
                 self.wfile.write(data)
         else:
             self.send_response(404)
