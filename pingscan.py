@@ -4,20 +4,16 @@ import sys
 import os
 import ipaddress
 import subprocess
-from importlib import util
 
-threading_spec = util.find_spec("threading")
-queue_spec = util.find_spec("queue")
-
-if threading_spec is not None and queue_spec is not None:
+try:
     import threading
     import queue
     NUM_THREADS = 10
     THREADING_ENABLED = True
     QUEUE = queue.Queue()
-else:
+except:
     THREADING_ENABLED = False
-
+    
 def checkHost(host):
     proc = subprocess.Popen(["ping", str(host), "-c", "1"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return proc.wait() == 0

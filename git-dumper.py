@@ -453,6 +453,7 @@ def fetch_git(url, directory, jobs, retry, timeout, module=".git"):
         os.path.join(directory, module, 'FETCH_HEAD'),
         os.path.join(directory, module, 'ORIG_HEAD'),
     ]
+
     for dirpath, _, filenames in os.walk(os.path.join(directory, module, 'refs')):
         for filename in filenames:
             files.append(os.path.join(dirpath, filename))
@@ -496,11 +497,11 @@ def fetch_git(url, directory, jobs, retry, timeout, module=".git"):
 
     # fetch all objects
     printf('[-] Fetching objects\n')
-    # process_tasks(objs,
-    #               FindObjectsWorker,
-    #               jobs,
-    #               args=(url, directory, retry, timeout, module),
-    #               tasks_done=packed_objs)
+    process_tasks(objs,
+                  FindObjectsWorker,
+                  jobs,
+                  args=(url, directory, retry, timeout, module),
+                  tasks_done=packed_objs)
 
     # git checkout
     if module == ".git":

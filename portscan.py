@@ -3,22 +3,18 @@
 import socket
 import sys
 import re
-from importlib import util
 
-threading_spec = util.find_spec("threading")
-queue_spec = util.find_spec("queue")
-
-if threading_spec is not None and queue_spec is not None:
+try:
     import threading
     import queue
     NUM_THREADS = 10
     THREADING_ENABLED = True
     QUEUE = queue.Queue()
-else:
+except:
     THREADING_ENABLED = False
 
 if len(sys.argv) < 2:
-    print("Usage: %s <host> [ports] [num_threads]")
+    print("Usage: %s <host> [ports] [num_threads]" % sys.argv[0])
     exit(1)
 
 host = sys.argv[1]
@@ -26,7 +22,7 @@ ports = range(1,1001)
 
 if len(sys.argv) >= 3:
     ports_param = sys.argv[2]
-    pattern = re.compile("^(\\d)+(-(\\d+)?)?$")
+    pattern = re.compile("^(\\d+)(-(\\d+)?)?$")
     m = pattern.match(ports_param)
     if m is None:
         print("Invalid port range")
