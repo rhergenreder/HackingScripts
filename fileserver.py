@@ -34,8 +34,16 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
 
         path = self.server.cleanPath(self.path)
         if path in self.server.routes:
-            data, code = self.server.routes[path](self)
-            self.send_response(code)
+            result = self.server.routes[path](self)
+            status_code = 200 if len(result) < 1 else result[0]
+            data        = b"" if len(result) < 2 else result[1]
+            headers     = { } if len(result) < 3 else result[2]
+
+            self.send_response(status_code)
+
+            for key, value in headers.items():
+                self.send_header(key, value)
+
             self.end_headers()
 
             if data and self.command != "HEAD":
