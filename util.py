@@ -18,8 +18,9 @@ def getAddress(interface="tun0"):
         interface = interfaces[0]
 
     addresses = ni.ifaddresses(interface)
-    address = addresses[ni.AF_INET][0]["addr"]
-    return address
+    addresses = [addresses[ni.AF_INET][i]["addr"] for i in range(len(addresses[ni.AF_INET]))]
+    addresses = [addr for addr in addresses if not str(addr).startswith("127")]
+    return addresses[0]
 
 def openServer(address, ports=None):
     listenPort = None
