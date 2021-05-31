@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import urlparse
 import threading
 import requests
 import sys
@@ -20,37 +21,73 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         self.do_GET()
 
-    def onForward(self, target):
-        queryStr = "" if "?" not in self.path else self.path[self.path.index("?")+1:]
-        if queryStr:
-            target += "?" if "?" not in target else "&"
-            target += queryStr
+    def onForward(self, base_path, target):
+        path = self.path[max(0, len(base_path)-1):]
+        parts = urlparse(target)
+        if path.startswith(parts.path):
+            path = path[len(parts.path):]
+
+        target_rewrite = target + path
+
+        # queryStr = "" if "?" not in self.path else self.path[self.path.index("?")+1:]
+        # if queryStr:
+        #     target += "?" if "?" not in target else "&"
+        #     target += queryStr
+
+        contentLength = self.headers.get('Content-Length')
+        data = None
+
+        if contentLength and int(contentLength) > 0:
+            data = self.rfile.read(int(contentLength))
 
         method = self.command
-        res = requests.request(method, target)
-        return res.content, res.status_code
+        print(target, "=>", method, target_rewrite)
+        res = requests.request(method, target_rewrite, headers=self.headers, data=data)
+        return res.status_code, res.content, res.headers
+
+
+    def find_route(self, path):
+
+        if path in self.server.routes:
+            return self.server.routes[path]
+
+        for p, route in self.server.prefix_routes.items():
+            if path.startswith(p):
+                return route
+
+        def not_found(req):
+            return 404, b"", {}
+
+        return not_found
+
+    def do_OPTIONS(self):
+        self.do_GET()
 
     def do_GET(self):
 
         path = self.server.cleanPath(self.path)
-        if path in self.server.routes:
-            result = self.server.routes[path](self)
-            status_code = 200 if len(result) < 1 else result[0]
-            data        = b"" if len(result) < 2 else result[1]
-            headers     = { } if len(result) < 3 else result[2]
+        route = self.find_route(path)
+        result = route(self)
 
-            self.send_response(status_code)
+        blacklist_headers = ["transfer-encoding", "content-length", "content-encoding", "allow", "connection"]
+        status_code = 200 if len(result) < 1 else result[0]
+        data        = b"" if len(result) < 2 else result[1]
+        headers     = { } if len(result) < 3 else result[2]
 
-            for key, value in headers.items():
+        self.log_request(status_code)
+        self.send_response_only(status_code)
+
+        for key, value in headers.items():
+            if key.lower() not in blacklist_headers:
                 self.send_header(key, value)
 
-            self.end_headers()
+        if self.command.upper() == "OPTIONS":
+            self.send_header("Allow", "OPTIONS, GET, HEAD, POST")
 
-            if data and self.command != "HEAD":
-                self.wfile.write(data)
-        else:
-            self.send_response(404)
-            self.end_headers()
+        self.end_headers()
+
+        if data and self.command.upper() not in ["HEAD","OPTION"]:
+            self.wfile.write(data)
 
         if path in self.server.dumpRequests:
             contentLength = self.headers.get('Content-Length')
@@ -77,6 +114,7 @@ class HttpFileServer(HTTPServer):
         self.logRequests = False
         self.routes = { }
         self.dumpRequests = []
+        self.prefix_routes = { }
 
     def cleanPath(self, path):
 
@@ -101,8 +139,11 @@ class HttpFileServer(HTTPServer):
     def addRoute(self, path, func):
         self.routes[self.cleanPath(path)] = func
 
+    def addPrefixRoute(self, path, func):
+        self.prefix_routes[self.cleanPath(path)] = func
+
     def forwardRequest(self, path, target):
-        self.addRoute(path, lambda req: req.onForward(target))
+        self.addPrefixRoute(path, lambda req: req.onForward(path, target))
 
     def enableLogging(self):
         self.logRequests = True

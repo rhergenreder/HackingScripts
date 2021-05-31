@@ -26,8 +26,8 @@ IP_ADDRESS=$(echo $output | head -n 1 |  awk '{print $NF}')
 echo "[+] IP-Address: ${IP_ADDRESS}"
 
 echo "[ ] Retrieving default site…"
-charcountDomain=$(curl -s -L "${PROTOCOL}://${DOMAIN}" -k | wc -m)
-charcountIpAddress=$(curl -s -L "${PROTOCOL}://${IP_ADDRESS}" -k | wc -m)
+charcountDomain=$(curl -s "${PROTOCOL}://${DOMAIN}" -k | wc -m)
+charcountIpAddress=$(curl -s "${PROTOCOL}://${IP_ADDRESS}" -k | wc -m)
 echo "[+] Chars: ${charcountDomain} and ${charcountIpAddress}"
 echo "[ ] Fuzzing…"
 
