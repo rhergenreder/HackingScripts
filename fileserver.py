@@ -86,7 +86,7 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
 
         self.end_headers()
 
-        if data and self.command.upper() not in ["HEAD","OPTION"]:
+        if data and self.command.upper() not in ["HEAD","OPTIONS"]:
             self.wfile.write(data)
 
         if path in self.server.dumpRequests:
