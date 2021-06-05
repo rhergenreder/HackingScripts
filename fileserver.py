@@ -115,6 +115,7 @@ class HttpFileServer(HTTPServer):
         self.routes = { }
         self.dumpRequests = []
         self.prefix_routes = { }
+        self.is_running = True
 
     def cleanPath(self, path):
 
@@ -175,6 +176,14 @@ class HttpFileServer(HTTPServer):
 
     def start(self):
         return self.serve_forever()
+
+    def stop(self):
+        self.is_running = False
+
+    def serve_forever(self):
+        while self.is_running:
+            self.handle_request()
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2 or sys.argv[1] not in ["shell","dump","proxy","xss"]:
