@@ -5,21 +5,23 @@ import sys
 def generateTemplate(baseUrl):
     template = """#!/usr/bin/env python
 
-import requests
-import base64
+import sys
 import json
+import base64
+import requests
 from bs4 import BeautifulSoup
 from hackingscripts import util, fileserver
+
 from urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
-BASE_URL = "%s"
+BASE_URL = "%s" if "LOCAL" not in sys.argv else "http://127.0.0.1:1337"
 
 def login(username, password):
     # Template method to create a session
     session = requests.Session()
     post_data = { "username": username, "password": password }
-    res = ression.post(BASE_URL + "/login", data=post_data, allow_redirects=False)
+    res = session.post(BASE_URL + "/login", data=post_data, allow_redirects=False)
     if res.status_code != 302 or "Location" not in res.headers or res.headers["Location"] != "/home":
         print("Login failed")
         exit()
@@ -29,8 +31,9 @@ def exploit(session, payload):
     # Template method to exploit an endpoint
     pass
 
-session = login()
-exploit(session, "id")
+if __name__ == "__main__":
+    session = login()
+    exploit(session, "id")
 """ % baseUrl
 
     return template

