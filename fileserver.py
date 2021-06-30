@@ -132,7 +132,7 @@ class HttpFileServer(HTTPServer):
             data = data.encode("UTF-8")
 
         # return 200 - OK and data
-        self.addRoute(name, lambda req: (data, 200))
+        self.addRoute(name, lambda req: (200, data))
 
     def dumpRequest(self, name):
         self.dumpRequests.append(self.cleanPath(name))

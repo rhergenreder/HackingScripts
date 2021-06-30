@@ -65,6 +65,7 @@ class HashType(enum.Enum):
     LM   = 3000
     NTLM = 1000
     MSSQL = 1731
+    NTLMV2_SSP = 5600
 
     # Kerberos
     KERBEROS_AS_REQ = 7500
@@ -109,9 +110,15 @@ class Hash:
             elif crypt_type == "S":
                 self.type.append(HashType.DRUPAL7)
         else:
-            self.isSalted = ":" in raw_hash
-            if self.isSalted:
-                raw_hash, self.salt = raw_hash.split(":")
+            if ":" in raw_hash:
+                parts = raw_hash.split(":")
+                if len(parts) == 2:
+                    self.isSalted = True
+                    raw_hash, self.salt = raw_hash.split(":")
+                elif len(parts) == 6:
+                    self.type.append(HashType.NTLMV2_SSP)
+
+
 
         # Base64 -> hex
         try:

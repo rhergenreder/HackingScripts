@@ -16,6 +16,8 @@ from urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
 BASE_URL = "%s" if "LOCAL" not in sys.argv else "http://127.0.0.1:1337"
+USERNAME = "admin"
+PASSWORD = "password"
 
 def login(username, password):
     # Template method to create a session
@@ -32,7 +34,7 @@ def exploit(session, payload):
     pass
 
 if __name__ == "__main__":
-    session = login()
+    session = login(USERNAME, PASSWORD)
     exploit(session, "id")
 """ % baseUrl
 

@@ -59,7 +59,7 @@ service-names = [
 ]
 
     [[finger.scan]]
-    nmap = 'nmap-finger'
+    name = 'nmap-finger'
     command = 'nmap {nmap_extra} -sV -p {port} --script="banner,finger" -oN "{scandir}/{protocol}_{port}_finger_nmap.txt" -oX "{scandir}/xml/{protocol}_{port}_finger_nmap.xml" {address}'
 
 [ftp]
@@ -126,8 +126,8 @@ ignore-service-names = [
     command = 'whatweb --color=never --no-errors -a 3 -v {scheme}://{address}:{port} 2>&1 | tee "{scandir}/{protocol}_{port}_{scheme}_whatweb.txt"'
 
     [[http.scan]]
-    name = 'ffuf'
-    command = 'ffuf -u {scheme}://{address}:{port}/FUZZ -t 10 -w /usr/share/seclists/Discovery/Web-Content/common.txt -e ".txt,.html,.php,.asp,.aspx,.jsp" -v | tee {scandir}/{protocol}_{port}_{scheme}_ffuf.txt'
+    name = 'feroxbuster'
+    command = 'feroxbuster -u {scheme}://{address}:{port} -t 10 -w /usr/share/seclists/Discovery/Web-Content/common.txt -x "txt,html,php,asp,aspx,jsp" -v -k -n -o {scandir}/{protocol}_{port}_{scheme}_feroxbuster.txt'
 
     [[http.manual]]
     description = '(nikto) old but generally reliable web server enumeration tool'
@@ -136,10 +136,10 @@ ignore-service-names = [
     ]
 
     [[http.manual]]
-    description = '(ffuf) Multi-threaded recursive directory/file enumeration for web servers using various wordlists:'
+    description = '(feroxbuster) Multi-threaded recursive directory/file enumeration for web servers using various wordlists:'
     commands = [
-        'ffuf -u {scheme}://{address}:{port}/FUZZ -w /usr/share/seclists/Discovery/Web-Content/big.txt -e ".txt,.html,.php,.asp,.aspx,.jsp" -v | tee {scandir}/{protocol}_{port}_{scheme}_ffuf_big.txt',
-        'ffuf -u {scheme}://{address}:{port}/FUZZ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -e ".txt,.html,.php,.asp,.aspx,.jsp" -v | tee {scandir}/{protocol}_{port}_{scheme}_ffuf_dirbuster.txt'
+        'feroxbuster -u {scheme}://{address}:{port} -t 10 -w /usr/share/seclists/Discovery/Web-Content/big.txt -x "txt,html,php,asp,aspx,jsp" -v -k -n -o {scandir}/{protocol}_{port}_{scheme}_feroxbuster_big.txt',
+        'feroxbuster -u {scheme}://{address}:{port} -t 10 -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x "txt,html,php,asp,aspx,jsp" -v -k -n -o {scandir}/{protocol}_{port}_{scheme}_feroxbuster_dirbuster.txt'
     ]
 
     [[http.manual]]
@@ -159,8 +159,8 @@ ignore-service-names = [
     [[http.manual]]
     description = '(gobuster v3) Directory/file enumeration for web servers using various wordlists (same as dirb above):'
     commands = [
-        'gobuster dir -u {scheme}://{address}:{port}/ -w /usr/share/seclists/Discovery/Web-Content/big.txt -e -k -l -s "200,204,301,302,307,403,500" -x "txt,html,php,asp,aspx,jsp" -z -o "{scandir}/{protocol}_{port}_{scheme}_gobuster_big.txt"',
-        'gobuster dir -u {scheme}://{address}:{port}/ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -e -k -l -s "200,204,301,302,307,403,500" -x "txt,html,php,asp,aspx,jsp" -z -o "{scandir}/{protocol}_{port}_{scheme}_gobuster_dirbuster.txt"'
+        'gobuster dir -u {scheme}://{address}:{port}/ -w /usr/share/seclists/Discovery/Web-Content/big.txt -e -k -s "200,204,301,302,307,403,500" -x "txt,html,php,asp,aspx,jsp" -z -o "{scandir}/{protocol}_{port}_{scheme}_gobuster_big.txt"',
+        'gobuster dir -u {scheme}://{address}:{port}/ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -e -k -s "200,204,301,302,307,403,500" -x "txt,html,php,asp,aspx,jsp" -z -o "{scandir}/{protocol}_{port}_{scheme}_gobuster_dirbuster.txt"'
     ]
 
     [[http.manual]]
