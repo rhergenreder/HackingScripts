@@ -210,7 +210,7 @@ if __name__ == "__main__":
             if os.path.isfile(uri):
                 data = open(uri,"r").read()
             else:
-                res = requests.get(uri)
+                res = requests.get(uri, verify=False)
                 if res.status_code != 200:
                     print("%s returned: %d %s" % (uri, res.status_code, res.reason))
                     exit()

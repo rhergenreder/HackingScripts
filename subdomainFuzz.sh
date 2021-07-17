@@ -8,7 +8,7 @@ fi
 DOMAIN=$1
 PROTOCOL="http"
 
-if [[ $DOMAIN = "https://*" ]]; then
+if [[ $DOMAIN = https://* ]]; then
    PROTOCOL="https"
 fi
 

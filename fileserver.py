@@ -201,6 +201,7 @@ if __name__ == "__main__":
         print("Reverse Shell URL: http://%s/shell.sh" % ipAddress)
     elif sys.argv[1] == "dump":
         fileServer.dumpRequest("/exfiltrate")
+        fileServer.dumpRequest("/")
         print("Exfiltrate data using: http://%s/exfiltrate" % ipAddress)
     elif sys.argv[1] == "proxy":
         url = "https://google.com" if len(sys.argv) < 3 else sys.argv[2]

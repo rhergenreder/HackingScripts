@@ -61,6 +61,10 @@ class HashType(enum.Enum):
     CRYPT_SHA512 = 1800
     CRYPT_APACHE = 1600
 
+    # python
+    PYTHON_PBKDF2_SHA256 = 20300
+    PYTHON_PBKDF2_SHA512 = 20200
+
     # Windows
     LM   = 3000
     NTLM = 1000
@@ -109,6 +113,10 @@ class Hash:
                 self.type.append(HashType.WORDPRESS)
             elif crypt_type == "S":
                 self.type.append(HashType.DRUPAL7)
+            elif crypt_type == "pbkdf2-sha256":
+                self.type.append(HashType.PYTHON_PBKDF2_SHA256)
+            elif crypt_type == "pbkdf2-sha512":
+                self.type.append(HashType.PYTHON_PBKDF2_SHA512)
         else:
             if ":" in raw_hash:
                 parts = raw_hash.split(":")
