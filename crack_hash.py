@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 
 import sys
-import requests
 import subprocess
 import enum
 import re
 import tempfile
 import base64
-import io
-from bs4 import BeautifulSoup
 
 HEX_PATTERN = re.compile("^[a-fA-F0-9]+$")
 B64_PATTERN = re.compile("^[a-zA-Z0-9+/=]+$")
