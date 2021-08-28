@@ -61,6 +61,7 @@ class HashType(enum.Enum):
     # python
     PYTHON_PBKDF2_SHA256 = 20300
     PYTHON_PBKDF2_SHA512 = 20200
+    DJANGO_PBKDF2_SHA256 = 10000
 
     # Windows
     LM   = 3000
@@ -72,6 +73,9 @@ class HashType(enum.Enum):
     KERBEROS_AS_REQ = 7500
     KERBEROS_TGS_REP = 13100
     KERBEROS_AS_REP = 18200
+
+    # Keepass
+    KEEPASS = 13400
 
 class Hash:
 
@@ -114,6 +118,10 @@ class Hash:
                 self.type.append(HashType.PYTHON_PBKDF2_SHA256)
             elif crypt_type == "pbkdf2-sha512":
                 self.type.append(HashType.PYTHON_PBKDF2_SHA512)
+            elif crypt_type == "keepass":
+                self.type.append(HashType.KEEPASS)
+        elif "$" in raw_hash and raw_hash.startswith("pbkdf2_sha256$"):
+            self.type.append(HashType.DJANGO_PBKDF2_SHA256)
         else:
             if ":" in raw_hash:
                 parts = raw_hash.split(":")

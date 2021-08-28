@@ -6,6 +6,8 @@ import pty
 import util
 import time
 import threading
+import readline
+
 
 def generatePayload(type, local_address, port):
 

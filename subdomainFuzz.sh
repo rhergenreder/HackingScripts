@@ -33,4 +33,4 @@ echo "[ ] Fuzzing…"
 
 ffuf --fs ${charcountDomain},${charcountIpAddress} --fc 400 --mc all \
   -w /usr/share/wordlists/SecLists/Discovery/Web-Content/raft-large-words-lowercase.txt \
-  -u "${PROTOCOL}://${IP_ADDRESS}" -H "Host: FUZZ.${DOMAIN}"
+  -u "${PROTOCOL}://${IP_ADDRESS}" -H "Host: FUZZ.${DOMAIN}" "${@:2}"

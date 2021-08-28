@@ -40,6 +40,9 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
         if contentLength and int(contentLength) > 0:
             data = self.rfile.read(int(contentLength))
 
+        if "Host" in self.headers:
+            del self.headers["Host"]
+
         method = self.command
         print(target, "=>", method, target_rewrite)
         res = requests.request(method, target_rewrite, headers=self.headers, data=data)
@@ -65,6 +68,11 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
 
+        if not self.server.is_running:
+            self.send_response(200)
+            self.end_headers()
+            return
+
         path = self.server.cleanPath(self.path)
         route = self.find_route(path)
         result = route(self)
@@ -74,29 +82,32 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
         data        = b"" if len(result) < 2 else result[1]
         headers     = { } if len(result) < 3 else result[2]
 
-        self.log_request(status_code)
-        self.send_response_only(status_code)
+        if len(headers) == 0:
+            self.send_response(status_code)
+        else:
+            self.log_request(status_code)
+            self.send_response_only(status_code)
 
-        for key, value in headers.items():
-            if key.lower() not in blacklist_headers:
-                self.send_header(key, value)
+            for key, value in headers.items():
+                if key.lower() not in blacklist_headers:
+                    self.send_header(key, value)
 
-        if self.command.upper() == "OPTIONS":
-            self.send_header("Allow", "OPTIONS, GET, HEAD, POST")
+            if self.command.upper() == "OPTIONS":
+                self.send_header("Allow", "OPTIONS, GET, HEAD, POST")
 
         self.end_headers()
 
         if data and self.command.upper() not in ["HEAD","OPTIONS"]:
             self.wfile.write(data)
 
-        if path in self.server.dumpRequests:
+        if path in self.server.dumpRequests or "/" in self.server.dumpRequests:
             contentLength = self.headers.get('Content-Length')
             body = None
 
             if contentLength and int(contentLength) > 0:
                 body = self.rfile.read(int(contentLength))
 
-            print("==========")
+            print("===== Connection from:",self.client_address[0])
             print("%s %s %s" % (self.command, self.path, self.request_version))
             print(str(self.headers).strip())
             if body:
@@ -127,12 +138,15 @@ class HttpFileServer(HTTPServer):
 
         return path.strip()
 
-    def addFile(self, name, data):
+    def addFile(self, name, data, mimeType=None):
         if isinstance(data, str):
             data = data.encode("UTF-8")
 
         # return 200 - OK and data
-        self.addRoute(name, lambda req: (200, data))
+        if mimeType:
+            self.addRoute(name, lambda req: (200, data, { "Content-Type": mimeType }))
+        else:
+            self.addRoute(name, lambda req: (200, data))
 
     def dumpRequest(self, name):
         self.dumpRequests.append(self.cleanPath(name))
@@ -179,6 +193,8 @@ class HttpFileServer(HTTPServer):
 
     def stop(self):
         self.is_running = False
+        # dummy request
+        requests.get(f"http://{self.server_name}:{self.server_port}/dummy")
 
     def serve_forever(self):
         while self.is_running:
@@ -200,9 +216,8 @@ if __name__ == "__main__":
         fileServer.addFile("shell.sh", rev_shell)
         print("Reverse Shell URL: http://%s/shell.sh" % ipAddress)
     elif sys.argv[1] == "dump":
-        fileServer.dumpRequest("/exfiltrate")
         fileServer.dumpRequest("/")
-        print("Exfiltrate data using: http://%s/exfiltrate" % ipAddress)
+        print("Exfiltrate data using: http://%s/" % ipAddress)
     elif sys.argv[1] == "proxy":
         url = "https://google.com" if len(sys.argv) < 3 else sys.argv[2]
         fileServer.forwardRequest("/proxy", url)
