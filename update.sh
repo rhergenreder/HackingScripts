@@ -12,12 +12,6 @@ wget --no-verbose https://github.com/carlospolop/privilege-escalation-awesome-sc
 wget --no-verbose https://github.com/rebootuser/LinEnum/raw/master/LinEnum.sh -O LinEnum.sh
 wget --no-verbose https://github.com/stealthcopter/deepce/raw/main/deepce.sh -O deepce.sh
 
-echo "Updating autorecon…"
-wget --no-verbose https://raw.githubusercontent.com/Tib3rius/AutoRecon/master/src/autorecon/autorecon.py -O autorecon.py
-wget --no-verbose https://github.com/Tib3rius/AutoRecon/raw/master/src/autorecon/config/global-patterns-default.toml -O autorecon_config/global-patterns.toml
-wget --no-verbose https://github.com/Tib3rius/AutoRecon/raw/master/src/autorecon/config/port-scan-profiles-default.toml -O autorecon_config/port-scan-profiles.toml
-wget --no-verbose https://github.com/Tib3rius/AutoRecon/raw/master/src/autorecon/config/service-scans-default.toml -O autorecon_config/service-scans.toml
-
 echo "Updating Chisel…"
 location=$(curl -s -I https://github.com/jpillora/chisel/releases/latest | grep -i "location: " | awk '{ print $2 }')
 if [[ "$location" =~ ^https://github.com/jpillora/chisel/releases/tag/v(.*) ]]; then

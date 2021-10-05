@@ -20,10 +20,9 @@ USERNAME = "admin"
 PASSWORD = "password"
 
 def login(username, password):
-    # Template method to create a session
     session = requests.Session()
     post_data = { "username": username, "password": password }
-    res = session.post(BASE_URL + "/login", data=post_data, allow_redirects=False)
+    res = session.post(f"{BASE_URL}/login", data=post_data, allow_redirects=False)
     if res.status_code != 302 or "Location" not in res.headers or res.headers["Location"] != "/home":
         print("Login failed")
         exit()

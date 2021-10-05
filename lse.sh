@@ -5,7 +5,7 @@
 # Author: Diego Blanco <diego.blanco@treitos.com>
 # GitHub: https://github.com/diego-treitos/linux-smart-enumeration
 #
-lse_version="3.3"
+lse_version="3.7"
 
 #( Colors
 #
@@ -87,7 +87,7 @@ lse_procmon_data=`mktemp`
 lse_procmon_lock=`mktemp`
 
 # printf
-printf "$reset" | grep -q '\\' && alias printf="env printf"
+printf "%s" "$reset" | grep -q '\\' && alias printf="env printf"
 
 # internal data
 lse_common_setuid="
@@ -126,7 +126,9 @@ lse_common_setuid="
 /usr/bin/newuidmap
 /usr/bin/passwd
 /usr/bin/pkexec
+/usr/bin/pmount
 /usr/bin/procmail
+/usr/bin/pumount
 /usr/bin/staprun
 /usr/bin/su
 /usr/bin/sudo
@@ -148,13 +150,17 @@ lse_common_setuid="
 /usr/lib/xorg/Xorg.wrap
 /usr/libexec/Xorg.wrap
 /usr/libexec/abrt-action-install-debuginfo-to-abrt-cache
+/usr/libexec/cockpit-session
 /usr/libexec/dbus-1/dbus-daemon-launch-helper
 /usr/libexec/gstreamer-1.0/gst-ptp-helper
 /usr/libexec/openssh/ssh-keysign
 /usr/libexec/polkit-1/polkit-agent-helper-1
+/usr/libexec/polkit-agent-helper-1
 /usr/libexec/pt_chown
 /usr/libexec/qemu-bridge-helper
+/usr/libexec/spice-client-glib-usb-acl-helper
 /usr/libexec/spice-gtk-x86_64/spice-client-glib-usb-acl-helper
+/usr/local/share/panasonic/printer/bin/L_H0JDUCZAZ
 /usr/sbin/exim4
 /usr/sbin/grub2-set-bootflag
 /usr/sbin/mount.nfs
@@ -170,7 +176,7 @@ lse_common_setuid="
 "
 #regex rules for common setuid
 lse_common_setuid="$lse_common_setuid
-/snap/core/.*
+/snap/core.*
 /var/tmp/mkinitramfs.*
 "
 #critical writable files
@@ -798,6 +804,16 @@ lse_run_tests_filesystem() {
     "Are there possible credentials in any shell history file?" \
     'for h in .bash_history .history .histfile .zhistory; do [ -f "$lse_home/$h" ] && grep $lse_grep_opts -Ei "(user|username|login|pass|password|pw|credentials)[=: ][a-z0-9]+" "$lse_home/$h"; done'
 
+  #nfs exports with no_root_squash
+  lse_test "fst210" "0" \
+    "Are there NFS exports with 'no_root_squash' option?" \
+    'grep $lse_grep_opts "no_root_squash" /etc/exports'
+
+  #nfs exports with no_all_squash
+  lse_test "fst220" "1" \
+    "Are there NFS exports with 'no_all_squash' option?" \
+    'grep $lse_grep_opts "no_all_squash" /etc/exports'
+
   #files owned by user
   lse_test "fst500" "2" \
     "Files owned by user '$lse_user'" \
@@ -816,7 +832,7 @@ lse_run_tests_filesystem() {
   #list nfs shares
   lse_test "fst530" "2" \
     "List NFS server shares" \
-    'ls -la /etc/exports; cat /etc/exports'
+    'ls -la /etc/exports 2>/dev/null && cat /etc/exports'
 
   #dump fstab
   lse_test "fst540" "2" \
@@ -1206,6 +1222,46 @@ lse_run_tests_software() {
     'for f in $lse_user_writable; do test -S "$f" && printf "$f" | grep -a "gpg-agent"; done' \
     "fst000"
 
+  #find keepass database files
+  lse_test "sof090" "0" \
+    "Found any keepass database files?" \
+    'find / $lse_find_opts -regextype egrep -iregex ".*\.kdbx?" -readable -type f -print'
+
+  #find pass database files
+  lse_test "sof100" "0" \
+    "Found any 'pass' store directories?" \
+    'find / $lse_find_opts -name ".password-store" -readable -type d -print'
+
+  #check if any tmux session is active
+  lse_test "sof110" "0" \
+    "Are there any tmux sessions available?" \
+    'tmux list-sessions'
+
+  #check for all tmux sessions for other users
+  lse_test "sof120" "1" \
+    "Are there any tmux sessions from other users?" \
+    'find /tmp -type d -regex "/tmp/tmux-[0-9]+" ! -user $lse_user'
+
+  #check if we have write access to other users tmux sessions
+  lse_test "sof130" "0" \
+    "Can we write to tmux session sockets from other users?" \
+    'find /tmp -writable -type s -regex "/tmp/tmux-[0-9]+/.+" ! -user $lse_user -exec ls -l {} +'
+
+  #check if there is any active screen session
+  lse_test "sof140" "0" \
+    "Are any screen sessions available?" \
+    'screen -ls >/dev/null && screen -ls'
+
+  #find other users screen sessions
+  lse_test "sof150" "1" \
+    "Are there any screen sessions from other users?" \
+    'find /run/screen -type d -regex "/run/screen/S-.+" ! -user $lse_user'
+
+  #find writable screen session sockets from other users
+  lse_test "sof160" "0" \
+    "Can we write to screen session sockets from other users?" \
+    'find /run/screen -type s -writable -regex "/run/screen/S-.+/.+" ! -user $lse_user -exec ls -l {} +'
+
   #sudo version - check to see if there are any known vulnerabilities with this
   lse_test "sof500" "2" \
     "Sudo version" \
@@ -1225,6 +1281,17 @@ lse_run_tests_software() {
   lse_test "sof530" "2" \
     "Apache version" \
     'apache2 -v; httpd -v'
+
+  #check tmux version
+  lse_test "sof540" "2" \
+    "Tmux version" \
+    'tmux -V'
+
+  #check screen version
+  lse_test "sof550" "2" \
+    "Screen version" \
+    'screen -v'
+
 }
 
 

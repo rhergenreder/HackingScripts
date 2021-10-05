@@ -7,7 +7,6 @@ This repository contains self-made and common scripts for information gathering,
 - gobuster.sh: Performs gobuster dir scan with raft-large-words-lowercase.txt
 - ssh-check-username.py: Check if user enumeration works for ssh
 - [git-dumper.py](https://github.com/arthaud/git-dumper)
-- [autorecon.py](https://github.com/Tib3rius/AutoRecon)
 - subdomainFuzz.sh: Fuzzes subdomains for a given domain
 
 ### Enumeration: Privilege Escalation & Pivoting
@@ -27,6 +26,8 @@ Can be deployed on victim machines to scan the intranet.
 - genRevShell.py: Generates a reverse shell command (e.g. netcat, python, ...)
 - [php-reverse-shell.php](https://github.com/pentestmonkey/php-reverse-shell)
 - [p0wny-shell.php](https://github.com/flozz/p0wny-shell)
+- [aspx-reverse-shell.aspx](https://github.com/borjmz/aspx-reverse-shell)
+- jsp-webshell.jsp: webshell for Java servlets
 
 ### Miscellaneous
 - upload_file.py: Starts a local tcp server, for netcat usage
@@ -35,6 +36,7 @@ Can be deployed on victim machines to scan the intranet.
 - sql.php: Execute sql queries passed via GET/POST
 - util.py: Collection of some small functions
 - fileserver.py: Create a temporary http server serving in-memory files
+- dnsserver.py: Create a temporary dns server responding dynamically to basic DNS requests (in-memory)
 
 ### Windows
  - nc.exe/nc64.exe: netcat standalone binary
@@ -46,3 +48,4 @@ Can be deployed on victim machines to scan the intranet.
  - [SharpHound.exe](https://github.com/BloodHoundAD/SharpHound3): BloodHound Ingestor
  - [windows-exploit-suggester.py](https://github.com/AonCyberLabs/Windows-Exploit-Suggester)
  - [aspx-reverse-shell.aspx](https://github.com/borjmz/aspx-reverse-shell)
+ - [xp_cmdshell.py](https://github.com/0xalwayslucky/pentesting-tools) (thanks to @alwayslucky)
