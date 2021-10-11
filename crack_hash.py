@@ -25,6 +25,8 @@ class HashType(enum.Enum):
     RAW_SHA1 = 100
     SHA1_PASS_SALT = 110
     SHA1_SALT_PASS = 120
+    SHA1 = 101
+    SSHA1 = 111
 
     # SHA2
     RAW_SHA2_224 = 1300
@@ -123,6 +125,14 @@ class Hash:
         elif "$" in raw_hash and raw_hash.startswith("pbkdf2_sha256$"):
             self.type.append(HashType.DJANGO_PBKDF2_SHA256)
         else:
+            m = re.match("^\{([^}]*)\}.*$", raw_hash)
+            if m:
+                hash_type = m[1]
+                if hash_type == "SHA":
+                    self.type.append(HashType.SHA1)
+                elif hash_type == "SSHA":
+                    self.type.append(HashType.SSHA1)
+
             if ":" in raw_hash:
                 parts = raw_hash.split(":")
                 if len(parts) == 2:
