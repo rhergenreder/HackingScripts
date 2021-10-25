@@ -527,7 +527,7 @@ sub processBlock {
 
 				my $continue = "y";
 
-				if (($error && $content !~ /$error/) || ($oracleSignature ne "" && $oracleSignature ne $signatureData)) {
+				if (($error && $content !~ /$error/ && $location !~ /$error/) || ($oracleSignature ne "" && $oracleSignature ne $signatureData)) {
 					# This is for autoretry logic (only works on the first byte)
 					if ($autoRetry == 1 &&  ($byteNum == ($blockSize - 1) ) && $hasHit == 0 ) {
 						$hasHit++;

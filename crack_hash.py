@@ -33,6 +33,8 @@ class HashType(enum.Enum):
     RAW_SHA2_256 = 1400
     SHA256_PASS_SALT = 1410
     SHA256_SALT_PASS = 1420
+    HMAC_SHA256_PASS = 1450
+    HMAC_SHA256_SALT = 1460
     RAW_SHA2_384 = 10800
     RAW_SHA2_512 = 1700
     SHA512_PASS_SALT = 1710
@@ -181,6 +183,8 @@ class Hash:
                 if self.isSalted:
                     self.type.append(HashType.SHA256_PASS_SALT)
                     self.type.append(HashType.SHA256_SALT_PASS)
+                    self.type.append(HashType.HMAC_SHA256_PASS)
+                    self.type.append(HashType.HMAC_SHA256_SALT)
                 else:
                     self.type.append(HashType.RAW_SHA2_256)
                     self.type.append(HashType.RAW_SHA3_256)
