@@ -85,7 +85,8 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
         if len(headers) == 0:
             self.send_response(status_code)
         else:
-            self.log_request(status_code)
+            if path != "/dummy":
+                self.log_request(status_code)
             self.send_response_only(status_code)
 
             for key, value in headers.items():
@@ -100,7 +101,7 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
         if data and self.command.upper() not in ["HEAD","OPTIONS"]:
             self.wfile.write(data)
 
-        if path in self.server.dumpRequests or "/" in self.server.dumpRequests:
+        if (path in self.server.dumpRequests or "/" in self.server.dumpRequests) and path != "/dummy":
             contentLength = self.headers.get('Content-Length')
             body = None
 

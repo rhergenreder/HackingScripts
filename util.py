@@ -154,8 +154,8 @@ def collectUrls(input):
         input = BeautifulSoup(input, "html.parser")
 
     urls = set()
-    attrs = ["src","href"]
-    tags = ["a","link","script","img"]
+    attrs = ["src","href","action"]
+    tags = ["a","link","script","img","form"]
 
     for tag in tags:
         for e in input.find_all(tag):

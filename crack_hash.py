@@ -25,6 +25,7 @@ class HashType(enum.Enum):
     RAW_SHA1 = 100
     SHA1_PASS_SALT = 110
     SHA1_SALT_PASS = 120
+    SHA1_SHA1 = 4500
     SHA1 = 101
     SSHA1 = 111
 
@@ -81,6 +82,14 @@ class HashType(enum.Enum):
     # Keepass
     KEEPASS = 13400
 
+    # mysql
+    MYSQL_323 = 200
+    MYSQL_41 = 300
+    MySQL_CRAM = 11200
+
+    #
+    IPMI2 = 7300
+
 class Hash:
 
     def __init__(self, hash):
@@ -124,6 +133,8 @@ class Hash:
                 self.type.append(HashType.PYTHON_PBKDF2_SHA512)
             elif crypt_type == "keepass":
                 self.type.append(HashType.KEEPASS)
+            elif crypt_type == "mysqlna":
+                self.type.append(HashType.MySQL_CRAM)
         elif "$" in raw_hash and raw_hash.startswith("pbkdf2_sha256$"):
             self.type.append(HashType.DJANGO_PBKDF2_SHA256)
         else:
@@ -163,7 +174,9 @@ class Hash:
 
         if HEX_PATTERN.match(raw_hash):
             hash_len = len(raw_hash)
-            if hash_len == 32:
+            if hash_len == 16:
+                self.type.append(HashType.MYSQL_323)
+            elif hash_len == 32:
                 if self.isSalted:
                     self.type.append(HashType.MD5_PASS_SALT)
                     self.type.append(HashType.MD5_SALT_PASS)
@@ -179,6 +192,8 @@ class Hash:
                 else:
                     self.type.append(HashType.RAW_SHA1)
                     self.type.append(HashType.RAW_RIPEMD_160)
+                    self.type.append(HashType.MYSQL_41)
+                    self.type.append(HashType.SHA1_SHA1)
             elif hash_len == 64:
                 if self.isSalted:
                     self.type.append(HashType.SHA256_PASS_SALT)
@@ -205,6 +220,9 @@ class Hash:
                 if not self.isSalted:
                     seld.type.append(HashType.MSSQL)
                     self.hash = "0x" + raw_hash # TODO: MSSQL requires 0x prefix..
+            elif hash_len == 142:
+                if self.isSalted:
+                    self.type.append(HashType.IPMI2)
         elif raw_hash.startswith("0x") and HEX_PATTERN.match(raw_hash[2:]) and len(raw_hash) == 140+2:
             seld.type.append(HashType.MSSQL)
 

