@@ -33,12 +33,14 @@ class HashType(enum.Enum):
     RAW_SHA2_224 = 1300
     RAW_SHA2_256 = 1400
     SHA256_PASS_SALT = 1410
+    SSHA256 = 1411
     SHA256_SALT_PASS = 1420
     HMAC_SHA256_PASS = 1450
     HMAC_SHA256_SALT = 1460
     RAW_SHA2_384 = 10800
     RAW_SHA2_512 = 1700
     SHA512_PASS_SALT = 1710
+    SSHA512 = 1711
     SHA512_SALT_PASS = 1720
 
     # SHA3
@@ -145,6 +147,10 @@ class Hash:
                     self.type.append(HashType.SHA1)
                 elif hash_type == "SSHA":
                     self.type.append(HashType.SSHA1)
+                elif hash_type == "SSHA256":
+                    self.type.append(HashType.SSHA256)
+                elif hash_type == "SSHA512":
+                    self.type.append(HashType.SSHA512)
 
             if ":" in raw_hash:
                 parts = raw_hash.split(":")

