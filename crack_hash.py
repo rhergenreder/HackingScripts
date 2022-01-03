@@ -1,289 +1,100 @@
 #!/usr/bin/env python
 
+import os
 import sys
 import subprocess
-import enum
-import re
+import json
 import tempfile
-import base64
+from name_that_hash import runner
 
-HEX_PATTERN = re.compile("^[a-fA-F0-9]+$")
-B64_PATTERN = re.compile("^[a-zA-Z0-9+/=]+$")
-B64_URL_PATTERN = re.compile("^[a-zA-Z0-9=_-]+$")
+def load_cracked_hashes():
+    potfile_path = os.path.join(os.path.expanduser("~"), ".hashcat", "hashcat.potfile")
+    cracked_hashes = { }
+    if os.path.isfile(potfile_path):
+        with open(potfile_path, "r") as f:
+            for line in f:
+                hash, password = line.strip().rsplit(":",1)
+                cracked_hashes[hash] = password
 
-class HashType(enum.Enum):
+    return cracked_hashes
 
-    # MD5
-    RAW_MD4 = 900
-    RAW_MD5 = 0
-    MD5_PASS_SALT = 10
-    MD5_SALT_PASS = 20
-    WORDPRESS = 400
-    DRUPAL7 = 7900
+if __name__ == "__main__":
 
-    # SHA1
-    RAW_SHA1 = 100
-    SHA1_PASS_SALT = 110
-    SHA1_SALT_PASS = 120
-    SHA1_SHA1 = 4500
-    SHA1 = 101
-    SSHA1 = 111
+    if len(sys.argv) < 2:
+        print("Usage: %s <file>" % sys.argv[0])
+        exit(1)
 
-    # SHA2
-    RAW_SHA2_224 = 1300
-    RAW_SHA2_256 = 1400
-    SHA256_PASS_SALT = 1410
-    SSHA256 = 1411
-    SHA256_SALT_PASS = 1420
-    HMAC_SHA256_PASS = 1450
-    HMAC_SHA256_SALT = 1460
-    RAW_SHA2_384 = 10800
-    RAW_SHA2_512 = 1700
-    SHA512_PASS_SALT = 1710
-    SSHA512 = 1711
-    SHA512_SALT_PASS = 1720
-
-    # SHA3
-    RAW_SHA3_224 = 17300
-    RAW_SHA3_256 = 17400
-    RAW_SHA3_384 = 17500
-    RAW_SHA3_512 = 17600
-
-    # Keccak
-    RAW_KECCAK_224 = 17700
-    RAW_KECCAK_256 = 17800
-    RAW_KECCAK_384 = 17900
-    RAW_KECCAK_512 = 18000
-
-    # Ripe-MD
-    RAW_RIPEMD_160 = 6000
-
-    # Crypt
-    CRYPT_MD5 = 500
-    CRYPT_BLOWFISH = 3200
-    CRYPT_SHA256 = 7400
-    CRYPT_SHA512 = 1800
-    CRYPT_APACHE = 1600
-
-    # python
-    PYTHON_PBKDF2_SHA256 = 20300
-    PYTHON_PBKDF2_SHA512 = 20200
-    DJANGO_PBKDF2_SHA256 = 10000
-
-    # Windows
-    LM   = 3000
-    NTLM = 1000
-    MSSQL = 1731
-    NTLMV2_SSP = 5600
-
-    # Kerberos
-    KERBEROS_AS_REQ = 7500
-    KERBEROS_TGS_REP = 13100
-    KERBEROS_AS_REP = 18200
-
-    # Keepass
-    KEEPASS = 13400
-
-    # mysql
-    MYSQL_323 = 200
-    MYSQL_41 = 300
-    MySQL_CRAM = 11200
-
-    #
-    IPMI2 = 7300
-
-class Hash:
-
-    def __init__(self, hash):
-        self.hash = hash
-        self.salt = None
-        self.isSalted = False
-        self.type = []
-        self.cracked = None
-        self.findType()
-
-    def findType(self):
-
-        raw_hash = self.hash
-        if raw_hash[0] == "$":
-            crypt_parts = list(filter(None, raw_hash.split("$")))
-            crypt_type = crypt_parts[0]
-            self.isSalted = len(crypt_parts) > 2
-            if crypt_type == "1":
-                self.type.append(HashType.CRYPT_MD5)
-            elif crypt_type.startswith("2"):
-                self.type.append(HashType.CRYPT_BLOWFISH)
-            elif crypt_type == "5":
-                self.type.append(HashType.CRYPT_SHA256)
-            elif crypt_type == "6":
-                self.type.append(HashType.CRYPT_SHA512)
-            elif crypt_type == "apr1":
-                self.type.append(HashType.CRYPT_APACHE)
-            elif crypt_type == "krb5tgs":
-                self.type.append(HashType.KERBEROS_TGS_REP)
-            elif crypt_type == "krb5asreq":
-                self.type.append(HashType.KERBEROS_AS_REQ)
-            elif crypt_type == "krb5asrep":
-                self.type.append(HashType.KERBEROS_AS_REP)
-            elif crypt_type == "P":
-                self.type.append(HashType.WORDPRESS)
-            elif crypt_type == "S":
-                self.type.append(HashType.DRUPAL7)
-            elif crypt_type == "pbkdf2-sha256":
-                self.type.append(HashType.PYTHON_PBKDF2_SHA256)
-            elif crypt_type == "pbkdf2-sha512":
-                self.type.append(HashType.PYTHON_PBKDF2_SHA512)
-            elif crypt_type == "keepass":
-                self.type.append(HashType.KEEPASS)
-            elif crypt_type == "mysqlna":
-                self.type.append(HashType.MySQL_CRAM)
-        elif "$" in raw_hash and raw_hash.startswith("pbkdf2_sha256$"):
-            self.type.append(HashType.DJANGO_PBKDF2_SHA256)
-        else:
-            m = re.match("^\{([^}]*)\}.*$", raw_hash)
-            if m:
-                hash_type = m[1]
-                if hash_type == "SHA":
-                    self.type.append(HashType.SHA1)
-                elif hash_type == "SSHA":
-                    self.type.append(HashType.SSHA1)
-                elif hash_type == "SSHA256":
-                    self.type.append(HashType.SSHA256)
-                elif hash_type == "SSHA512":
-                    self.type.append(HashType.SSHA512)
-
-            if ":" in raw_hash:
-                parts = raw_hash.split(":")
-                if len(parts) == 2:
-                    self.isSalted = True
-                    raw_hash, self.salt = raw_hash.split(":")
-                elif len(parts) == 6:
-                    self.type.append(HashType.NTLMV2_SSP)
-
-
-
-        # Base64 -> hex
-        try:
-            if not HEX_PATTERN.match(raw_hash):
-
-                if B64_URL_PATTERN.match(raw_hash):
-                    raw_hash = raw_hash.replace("-","+").replace("_","/")
-                if B64_PATTERN.match(raw_hash):
-                    raw_hash = base64.b64decode(raw_hash.encode("UTF-8")).decode("UTF-8").hex()
-
-                if self.isSalted:
-                    self.hash = raw_hash + ":" + self.salt
-                else:
-                    self.hash = raw_hash
-        except:
-            pass
-
-        if HEX_PATTERN.match(raw_hash):
-            hash_len = len(raw_hash)
-            if hash_len == 16:
-                self.type.append(HashType.MYSQL_323)
-            elif hash_len == 32:
-                if self.isSalted:
-                    self.type.append(HashType.MD5_PASS_SALT)
-                    self.type.append(HashType.MD5_SALT_PASS)
-                else:
-                    self.type.append(HashType.RAW_MD5)
-                    self.type.append(HashType.RAW_MD4)
-                    self.type.append(HashType.NTLM)
-                    self.type.append(HashType.LM)
-            elif hash_len == 40:
-                if self.isSalted:
-                    self.type.append(HashType.SHA1_PASS_SALT)
-                    self.type.append(HashType.SHA1_SALT_PASS)
-                else:
-                    self.type.append(HashType.RAW_SHA1)
-                    self.type.append(HashType.RAW_RIPEMD_160)
-                    self.type.append(HashType.MYSQL_41)
-                    self.type.append(HashType.SHA1_SHA1)
-            elif hash_len == 64:
-                if self.isSalted:
-                    self.type.append(HashType.SHA256_PASS_SALT)
-                    self.type.append(HashType.SHA256_SALT_PASS)
-                    self.type.append(HashType.HMAC_SHA256_PASS)
-                    self.type.append(HashType.HMAC_SHA256_SALT)
-                else:
-                    self.type.append(HashType.RAW_SHA2_256)
-                    self.type.append(HashType.RAW_SHA3_256)
-            elif hash_len == 96:
-                if not self.isSalted:
-                    self.type.append(HashType.RAW_SHA2_384)
-                    self.type.append(HashType.RAW_SHA3_384)
-                    self.type.append(HashType.RAW_KECCAK_384)
-            elif hash_len == 128:
-                if self.isSalted:
-                    self.type.append(HashType.SHA512_PASS_SALT)
-                    self.type.append(HashType.SHA512_SALT_PASS)
-                else:
-                    self.type.append(HashType.RAW_SHA2_512)
-                    self.type.append(HashType.RAW_SHA3_512)
-                    self.type.append(HashType.RAW_KECCAK_256)
-            elif hash_len == 140:
-                if not self.isSalted:
-                    seld.type.append(HashType.MSSQL)
-                    self.hash = "0x" + raw_hash # TODO: MSSQL requires 0x prefix..
-            elif hash_len == 142:
-                if self.isSalted:
-                    self.type.append(HashType.IPMI2)
-        elif raw_hash.startswith("0x") and HEX_PATTERN.match(raw_hash[2:]) and len(raw_hash) == 140+2:
-            seld.type.append(HashType.MSSQL)
-
-        if len(self.type) == 0:
-            print("%s: Unknown hash" % self.hash)
-
-if len(sys.argv) < 2:
-    print("Usage: %s <file>" % sys.argv[0])
-    exit(1)
-
-hashes = [Hash(x) for x in filter(None, [line.strip() for line in open(sys.argv[1],"r").readlines()])]
-wordlist = "/usr/share/wordlists/rockyou.txt" if len(sys.argv) < 3 else sys.argv[2]
-
-uncracked_hashes = { }
-for hash in hashes:
-    if hash.type:
-        for t in hash.type:
-            if t not in uncracked_hashes:
-                uncracked_hashes[t] = []
-            uncracked_hashes[t].append(hash)
-
-if len(uncracked_hashes) > 0:
-    uncracked_types = list(uncracked_hashes.keys())
-    num_types = len(uncracked_types)
-    if num_types > 1:
-        print("There are multiple uncracked hashes left with different hash types, choose one to proceed with hashcat:")
-        print()
-
-        i = 0
-        for t,lst in uncracked_hashes.items():
-            print("%d.\t%s:\t%d hashe(s)" % (i, str(t)[len("HashType."):], len(lst)))
-            i += 1
-
-        # Ask user…
-        selected = None
-        while selected is None or selected < 0 or selected >= num_types:
-            try:
-                selected = int(input("Your Choice: ").strip())
-                if selected >= 0 and selected < num_types:
-                    break
-            except Exception as e:
-                if type(e) in [EOFError, KeyboardInterrupt]:
-                    print()
-                    exit()
-
-            print("Invalid input")
-        selected_type = uncracked_types[selected]
+    hashes = filter(None, [line.strip() for line in open(sys.argv[1],"r").readlines()])
+    potfile = load_cracked_hashes()
+    if potfile:
+        uncracked_hashes = []
+        for hash in hashes:
+            password = potfile.get(hash, potfile.get(hash.rsplit(":", 1)[0], None))
+            if password:
+                print(f"Potfile: {hash}: {password}")
+            else:
+                uncracked_hashes.append(hash)
     else:
-        selected_type = uncracked_types[0]
+        uncracked_hashes = hashes
+        
+    hashes = json.loads(runner.api_return_hashes_as_json(uncracked_hashes))
+    wordlist = "/usr/share/wordlists/rockyou.txt" if len(sys.argv) < 3 else sys.argv[2]
 
-    fp = tempfile.NamedTemporaryFile()
-    for hash in uncracked_hashes[selected_type]:
-        fp.write(b"%s\n" % hash.hash.encode("UTF-8"))
-    fp.flush()
+    hash_types = { }
+    for hash, types in hashes.items():
+        for t in types:
+            hash_id = t["hashcat"]
+            if hash_id is None:
+                continue
 
-    proc = subprocess.Popen(["hashcat", "-m", str(selected_type.value), "-a", "0", fp.name, wordlist])
-    proc.wait()
-    fp.close()
+            salted = ":" in hash
+            if salted != t["extended"]:
+                continue
+            
+            if hash_id not in hash_types:
+                hash_types[hash_id] = { "name": t["name"], "hashes": {hash} }
+            else:
+                hash_types[hash_id]["hashes"].add(hash)
+
+    if len(hash_types) > 0:
+        uncracked_types = list(hash_types.keys())
+        num_types = len(uncracked_types)
+        if num_types > 1:
+            print("There are multiple uncracked hashes left with different hash types, choose one to proceed with hashcat:")
+            print()
+
+            i = 0
+            for hash_id, hash_type in hash_types.items():
+                name = (hash_type["name"] + ": ").ljust(max(len(x["name"]) for x in hash_types.values()) + 2)
+                count = len(hash_type["hashes"])
+                index = (f"{i}. ").ljust(len(str(num_types - 1)) + 2)
+                print(f"{index}{name}{count} hashe(s)")
+                i += 1
+
+            # Ask user…
+            selected = None
+            while selected is None or selected < 0 or selected >= num_types:
+                try:
+                    selected = int(input("Your Choice: ").strip())
+                    if selected >= 0 and selected < num_types:
+                        break
+                except Exception as e:
+                    if type(e) in [EOFError, KeyboardInterrupt]:
+                        print()
+                        exit()
+
+                print("Invalid input")
+            selected_type = uncracked_types[selected]
+        else:
+            selected_type = uncracked_types[0]
+
+        fp = tempfile.NamedTemporaryFile()
+        for hash in hash_types[selected_type]["hashes"]:
+            fp.write(b"%s\n" % hash.encode("UTF-8"))
+        fp.flush()
+
+        proc = subprocess.Popen(["hashcat", "-m", str(selected_type), "-a", "0", fp.name, wordlist])
+        proc.wait()
+        fp.close()
+    else:
+        print("No uncracked hashes left")
