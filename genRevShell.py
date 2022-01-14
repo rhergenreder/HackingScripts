@@ -5,6 +5,7 @@ import sys
 import pty
 import util
 import time
+import random
 import threading
 import readline
 import base64
@@ -137,11 +138,9 @@ if __name__ == "__main__":
 
     # choose random port
     if listen_port is None:
-        sock = util.openServer(local_address)
-        if not sock:
-            exit(1)
-        listen_port = sock.getsockname()[1]
-        sock.close()
+        listen_port = random.randint(10000,65535)
+        while util.isPortInUse(listen_port):
+            listen_port = random.randint(10000,65535)
 
     payload = generatePayload(payload_type, local_address, listen_port)
 

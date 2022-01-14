@@ -11,6 +11,12 @@ import io
 from PIL import Image
 from bs4 import BeautifulSoup
 
+def isPortInUse(port):
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('127.0.0.1', port)) == 0
+
+
 def getAddress(interface="tun0"):
     if not interface in ni.interfaces():
         interfaces = ni.interfaces()
