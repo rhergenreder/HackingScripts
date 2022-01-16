@@ -133,7 +133,7 @@ def run(files, root_dir, git_dir):
             found_commit = find_newest_commit(git_dir, f, sha1hash, md5hash, commits)
             if found_commit:
                 print(f"[+] Commit {found_commit} matches")
-                if latest_commit is None or commits[found_commit] < latest_ts:
+                if latest_commit is None or commits[found_commit] > latest_ts:
                     latest_commit = found_commit
                     latest_ts = commits[found_commit]
         else:

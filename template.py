@@ -8,6 +8,7 @@ def generateTemplate(baseUrl):
 import os
 import sys
 import json
+import time
 import base64
 import requests
 import subprocess
@@ -28,8 +29,14 @@ def request(method, uri, **kwargs):
     if "session" in kwargs:
         client = kwargs["session"]
         del kwargs["session"]
+    
+    if "allow_redirects" not in kwargs:
+        kwargs["allow_redirects"] = False
+    
+    if "verify" not in kwargs:
+        kwargs["verify"] = False
 
-    return client.request(method, BASE_URL + uri, verify=False, allow_redirects=False, **kwargs)
+    return client.request(method, BASE_URL + uri, **kwargs)
 
 if __name__ == "__main__":
     pass
