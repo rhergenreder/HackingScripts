@@ -16,9 +16,11 @@ class ShellListener:
         self.listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.bind_addr = addr
         self.port = port
+        self.verbose = False
         self.on_message = None
         self.listen_thread = None
         self.connection = None
+        self.on_connect = None
 
     def startBackground(self):
         self.listen_thread = threading.Thread(target=self.start)
@@ -27,16 +29,23 @@ class ShellListener:
 
     def start(self):
         self.running = True
+        self.listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.listen_socket.bind((self.bind_addr, self.port))
         self.listen_socket.listen()
         while self.running:
             self.connection, addr = self.listen_socket.accept()
             with self.connection:
                 print("[+] Got connection:", addr)
+
+                if self.on_connect:
+                    self.on_connect(addr)
+
                 while self.running:
                     data = self.connection.recv(1024)
                     if not data:
                         break
+                    if self.verbose:
+                        print("< ", data)
                     if self.on_message:
                         self.on_message(data)
                         
@@ -52,6 +61,10 @@ class ShellListener:
         if self.connection:
             if isinstance(data, str):
                 data = data.encode()
+
+            if self.verbose:
+                print("> ", data)
+
             self.connection.sendall(data)
 
     def sendline(self, data):
@@ -68,6 +81,11 @@ class ShellListener:
         self.on_message = lambda x: self.print_message(x)
         while self.running and self.connection is not None:
             self.sendline(input())
+
+    def wait(self):
+        while self.running and self.connection is None:
+            time.sleep(0.1)
+        return self.running
 
 def generatePayload(type, local_address, port, index=None):
 
