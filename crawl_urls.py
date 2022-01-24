@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import urllib.parse
 import urllib3
@@ -55,6 +57,10 @@ class Crawler:
 
             self.visited.add(url)
             res = self.request(url)
+            content_type = res.headers.get("Content-Type", None)
+            if "text/html" not in content_type.lower().split(";"):
+                continue
+
             urls = self.collect_urls(res.text)
             for url in urls:
                 parts = urllib.parse.urlparse(url)
