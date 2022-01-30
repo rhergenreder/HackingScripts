@@ -14,7 +14,7 @@ import requests
 import subprocess
 import urllib.parse
 from bs4 import BeautifulSoup
-from hackingscripts import util, fileserver, genRevShell
+from hackingscripts import util, fileserver, rev_shell
 
 from urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
