@@ -193,7 +193,7 @@ if __name__ == "__main__":
             output = set_exif_data(payload, _in, _out, tag)
             sys.stdout.buffer.write(output)
             sys.stdout.flush()
-    elif command == "help":
+    else:
         print("Usage: %s [command]" % bin)
         print("Available commands:")
         print("   help, getAddress, pad, exifImage")

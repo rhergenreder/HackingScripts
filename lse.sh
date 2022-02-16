@@ -5,7 +5,7 @@
 # Author: Diego Blanco <diego.blanco@treitos.com>
 # GitHub: https://github.com/diego-treitos/linux-smart-enumeration
 #
-lse_version="3.7"
+lse_version="3.9"
 
 #( Colors
 #
@@ -502,7 +502,8 @@ lse_serve() {
     cecho "${green}   * ${white}wget ${reset}           '$ip:$port' -O lse.sh; chmod 755 lse.sh\n"
     cecho "${green}   * ${white}exec 3<>/dev/tcp/${reset}$ip/$port;printf '\\\\n'>&3;cat<&3>lse.sh;exec 3<&-;chmod 755 lse.sh\n"
   done
-  nc -l -q0 -p "$port" < "$0" >/dev/null
+  # try nc with '-N' (openbsd), then ncat and then use '-q0' (traditional)
+  nc -l -N -p "$port" < "$0" >/dev/null 2>/dev/null || nc -l --send-only -p "$port" < "$0" >/dev/null 2>/dev/null || nc -l -q0 -p "$port" < "$0" >/dev/null
 }
 lse_header() {
   local id="$1"
@@ -1261,6 +1262,11 @@ lse_run_tests_software() {
   lse_test "sof160" "0" \
     "Can we write to screen session sockets from other users?" \
     'find /run/screen -type s -writable -regex "/run/screen/S-.+/.+" ! -user $lse_user -exec ls -l {} +'
+
+  #check connection to mongoDB
+  lse_test "sof170" "1" \
+    "Can we access MongoDB databases without credentials?" \
+    'echo "show dbs" | mongo --quiet | grep -E "(admin|config|local)"'
 
   #sudo version - check to see if there are any known vulnerabilities with this
   lse_test "sof500" "2" \

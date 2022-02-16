@@ -86,6 +86,8 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
         if path in self.server.dumpRequests:
             headers["Access-Control-Allow-Origin"] = "*"
 
+        headers["Content-Length"] = len(data)
+
         if len(headers) == 0:
             self.send_response(status_code)
         else:
@@ -149,11 +151,14 @@ class HttpFileServer(HTTPServer):
         if isinstance(data, str):
             data = data.encode("UTF-8")
 
-        # return 200 - OK and data
+        headers = { 
+            "Access-Control-Allow-Origin": "*",
+        }
         if mimeType:
-            self.addRoute(name, lambda req: (200, data, { "Content-Type": mimeType }))
-        else:
-            self.addRoute(name, lambda req: (200, data))
+            headers["Content-Type"] = headers
+
+        # return 200 - OK and data
+        self.addRoute(name, lambda req: (200, data, headers))
 
     def dumpRequest(self, name):
         self.dumpRequests.append(self.cleanPath(name))
