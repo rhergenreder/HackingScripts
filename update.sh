@@ -23,15 +23,15 @@ get_latest_version () {
 }
 
 echo "Updating scripts…"
-# download https://raw.githubusercontent.com/initstring/uptux/master/uptux.py uptux.py
-# download https://raw.githubusercontent.com/pentestmonkey/unix-privesc-check/master/upc.sh unix-privesc-check.sh
-# download https://github.com/DominicBreuker/pspy/releases/latest/download/pspy64 pspy64
-# download https://github.com/DominicBreuker/pspy/releases/latest/download/pspy32 pspy
-# download https://raw.githubusercontent.com/flozz/p0wny-shell/master/shell.php p0wny-shell.php
-# download https://raw.githubusercontent.com/diego-treitos/linux-smart-enumeration/master/lse.sh lse.sh
-# download https://raw.githubusercontent.com/mzet-/linux-exploit-suggester/master/linux-exploit-suggester.sh linux-exploit-suggester.sh
-# download https://github.com/rebootuser/LinEnum/raw/master/LinEnum.sh LinEnum.sh
-# download https://github.com/stealthcopter/deepce/raw/main/deepce.sh deepce.sh
+download https://raw.githubusercontent.com/initstring/uptux/master/uptux.py uptux.py
+download https://raw.githubusercontent.com/pentestmonkey/unix-privesc-check/master/upc.sh unix-privesc-check.sh
+download https://github.com/DominicBreuker/pspy/releases/latest/download/pspy64 pspy64
+download https://github.com/DominicBreuker/pspy/releases/latest/download/pspy32 pspy
+download https://raw.githubusercontent.com/flozz/p0wny-shell/master/shell.php p0wny-shell.php
+download https://raw.githubusercontent.com/diego-treitos/linux-smart-enumeration/master/lse.sh lse.sh
+download https://raw.githubusercontent.com/mzet-/linux-exploit-suggester/master/linux-exploit-suggester.sh linux-exploit-suggester.sh
+download https://github.com/rebootuser/LinEnum/raw/master/LinEnum.sh LinEnum.sh
+download https://github.com/stealthcopter/deepce/raw/main/deepce.sh deepce.sh
 
 echo "Updating LinPEAS + WinPEAS…"
 peas_version=$(get_latest_version carlospolop/PEASS-ng)
