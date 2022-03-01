@@ -44,6 +44,8 @@ def get_indexed_files(response):
         if (url.path and
                 url.path != '.' and
                 url.path != '..' and
+                url.path != './' and
+                url.path != '../' and
                 not url.path.startswith('/') and
                 not url.scheme and
                 not url.netloc):
@@ -171,15 +173,15 @@ def process_tasks(initial_tasks, worker, jobs, args=(), tasks_done=None):
 class DownloadWorker(Worker):
     ''' Download a list of files '''
 
-    def init(self, url, directory, retry, timeout, module=None):
+    def init(self, url, directory, retry, timeout, follow_redirects=False, module=None):
         self.session = requests.Session()
         self.session.verify = False
         self.session.mount(url, requests.adapters.HTTPAdapter(max_retries=retry))
         self.module = module
 
-    def do_task(self, filepath, url, directory, retry, timeout, module=None):
+    def do_task(self, filepath, url, directory, retry, timeout, follow_redirects=False, module=None):
         with closing(self.session.get('%s/%s' % (url, filepath),
-                                      allow_redirects=False,
+                                      allow_redirects=follow_redirects,
                                       stream=True,
                                       timeout=timeout,
                                       headers={"User-Agent": USER_AGENT})) as response:
@@ -202,9 +204,9 @@ class DownloadWorker(Worker):
 class RecursiveDownloadWorker(DownloadWorker):
     ''' Download a directory recursively '''
 
-    def do_task(self, filepath, url, directory, retry, timeout):
+    def do_task(self, filepath, url, directory, retry, timeout, follow_redirects=False):
         with closing(self.session.get('%s/%s' % (url, filepath),
-                                      allow_redirects=False,
+                                      allow_redirects=follow_redirects,
                                       stream=True,
                                       timeout=timeout,
                                       headers={"User-Agent": USER_AGENT})) as response:
@@ -237,9 +239,9 @@ class RecursiveDownloadWorker(DownloadWorker):
 class FindRefsWorker(DownloadWorker):
     ''' Find refs/ '''
 
-    def do_task(self, filepath, url, directory, retry, timeout, module):
+    def do_task(self, filepath, url, directory, retry, timeout, follow_redirects=False, module=None):
         response = self.session.get('%s/%s' % (url, filepath),
-                                    allow_redirects=False,
+                                    allow_redirects=follow_redirects,
                                     timeout=timeout,
                                     headers={"User-Agent": USER_AGENT})
         printf('[-] Fetching %s/%s [%d]\n', url, filepath, response.status_code)
@@ -271,11 +273,11 @@ class FindRefsWorker(DownloadWorker):
 class FindObjectsWorker(DownloadWorker):
     ''' Find objects '''
 
-    def do_task(self, obj, url, directory, retry, timeout, module):
+    def do_task(self, obj, url, directory, retry, timeout, follow_redirects, module):
         # module = ".git" if not url.endswith("/modules") else ""
         filepath = '%s/objects/%s/%s' % (self.module, obj[:2], obj[2:])
         response = self.session.get('%s/%s' % (url, filepath),
-                                    allow_redirects=False,
+                                    allow_redirects=follow_redirects,
                                     timeout=timeout,
                                     headers={"User-Agent": USER_AGENT})
         printf('[-] Fetching %s/%s [%d]\n', url, filepath, response.status_code)
@@ -295,7 +297,7 @@ class FindObjectsWorker(DownloadWorker):
         return get_referenced_sha1(obj_file)
 
 
-def fetch_git(url, directory, jobs, retry, timeout, module=".git"):
+def fetch_git(url, directory, jobs, retry, timeout, follow_redirects, module=".git"):
     ''' Dump a git repository into the output directory '''
 
     assert os.path.isdir(directory), '%s is not a directory' % directory
@@ -320,7 +322,7 @@ def fetch_git(url, directory, jobs, retry, timeout, module=".git"):
 
     # check for /.git/HEAD
     printf('[-] Testing %s/%s/HEAD ', url, module)
-    response = requests.get('%s/%s/HEAD' % (url, module), verify=False, allow_redirects=False, headers={"User-Agent": USER_AGENT})
+    response = requests.get('%s/%s/HEAD' % (url, module), verify=False, allow_redirects=follow_redirects, headers={"User-Agent": USER_AGENT})
     printf('[%d]\n', response.status_code)
 
     if response.status_code != 200:
@@ -332,7 +334,7 @@ def fetch_git(url, directory, jobs, retry, timeout, module=".git"):
 
     # check for directory listing
     printf('[-] Testing %s/%s/ ', url, module)
-    response = requests.get('%s/%s/' % (url, module), verify=False, allow_redirects=False, headers={"User-Agent": USER_AGENT})
+    response = requests.get('%s/%s/' % (url, module), verify=False, allow_redirects=follow_redirects, headers={"User-Agent": USER_AGENT})
     printf('[%d]\n', response.status_code)
 
     if response.status_code == 200 and is_html(response) and 'HEAD' in get_indexed_files(response):
@@ -340,7 +342,7 @@ def fetch_git(url, directory, jobs, retry, timeout, module=".git"):
         process_tasks(['.git/', '.gitignore'],
                       RecursiveDownloadWorker,
                       jobs,
-                      args=(url, directory, retry, timeout))
+                      args=(url, directory, retry, timeout, follow_redirects))
 
         printf('[-] Running git checkout .\n')
         os.chdir(directory)
@@ -378,7 +380,7 @@ def fetch_git(url, directory, jobs, retry, timeout, module=".git"):
     process_tasks(tasks,
                   DownloadWorker,
                   jobs,
-                  args=(url, directory, retry, timeout, module))
+                  args=(url, directory, retry, timeout, follow_redirects, module))
 
     if module == ".git":
         modules_path = os.path.join(directory, '.gitmodules')
@@ -392,7 +394,7 @@ def fetch_git(url, directory, jobs, retry, timeout, module=".git"):
                     printf("[-] Fetching module: %s\n", module_name)
                     # os.makedirs(os.path.abspath(module_dir))
                     module_url = url + "/.git/modules"
-                    fetch_git(module_url, module_dir, jobs, retry, timeout, module=module_name)
+                    fetch_git(module_url, module_dir, jobs, retry, timeout, follow_redirects, module=module_name)
                     printf("[+] Done iterating module\n")
 
     # find refs
@@ -420,7 +422,7 @@ def fetch_git(url, directory, jobs, retry, timeout, module=".git"):
     process_tasks(tasks,
                   FindRefsWorker,
                   jobs,
-                  args=(url, directory, retry, timeout, module))
+                  args=(url, directory, retry, timeout, follow_redirects, module))
 
     # find packs
     printf('[-] Finding packs\n')
@@ -439,7 +441,7 @@ def fetch_git(url, directory, jobs, retry, timeout, module=".git"):
     process_tasks(tasks,
                   DownloadWorker,
                   jobs,
-                  args=(url, directory, retry, timeout))
+                  args=(url, directory, retry, timeout, follow_redirects))
 
     # find objects
     printf('[-] Finding objects\n')
@@ -477,8 +479,12 @@ def fetch_git(url, directory, jobs, retry, timeout, module=".git"):
     if os.path.exists(index_path):
         index = dulwich.index.Index(index_path)
 
-        for entry in index.iterblobs():
-            objs.add(entry[1].decode())
+        # index.iteritems()
+        for entry in index.iteritems():
+            if isinstance(entry[1], dulwich.index.IndexEntry):
+                objs.add(entry[1].sha.decode())
+            elif hasattr(entry[1], "decode"):
+                objs.add(entry[1].decode())
 
     # use packs to find more objects to fetch, and objects that are packed
     pack_file_dir = os.path.join(directory, module, 'objects', 'pack')
@@ -500,7 +506,7 @@ def fetch_git(url, directory, jobs, retry, timeout, module=".git"):
     process_tasks(objs,
                   FindObjectsWorker,
                   jobs,
-                  args=(url, directory, retry, timeout, module),
+                  args=(url, directory, retry, timeout, follow_redirects, module),
                   tasks_done=packed_objs)
 
     # git checkout
@@ -529,6 +535,9 @@ if __name__ == '__main__':
                         help='number of request attempts before giving up')
     parser.add_argument('-t', '--timeout', type=int, default=3,
                         help='maximum time in seconds before giving up')
+    parser.add_argument('-L', '--follow-redirects', default=False,
+                        dest='follow_redirects', action="store_true",
+                        help='follow redirects')
     args = parser.parse_args()
 
     # jobs
@@ -576,7 +585,7 @@ if __name__ == '__main__':
 
     # fetch everything
     path = os.path.realpath(args.directory)
-    code = fetch_git(args.url, args.directory, args.jobs, args.retry, args.timeout)
+    code = fetch_git(args.url, args.directory, args.jobs, args.retry, args.timeout, args.follow_redirects)
     if not os.listdir(path):
         os.rmdir(path)
 

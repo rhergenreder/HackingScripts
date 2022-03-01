@@ -68,59 +68,61 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
         self.do_GET()
 
     def do_GET(self):
+        try:
+            if not self.server.is_running:
+                self.send_response(200)
+                self.end_headers()
+                return
 
-        if not self.server.is_running:
-            self.send_response(200)
+            path = self.server.cleanPath(self.path)
+            route = self.find_route(path)
+            result = route(self)
+
+            blacklist_headers = ["transfer-encoding", "content-length", "content-encoding", "allow", "connection"]
+            status_code = 200 if len(result) < 1 else result[0]
+            data        = b"" if len(result) < 2 else result[1]
+            headers     = { } if len(result) < 3 else result[2]
+
+            if path in self.server.dumpRequests:
+                headers["Access-Control-Allow-Origin"] = "*"
+
+            headers["Content-Length"] = len(data)
+
+            if len(headers) == 0:
+                self.send_response(status_code)
+            else:
+                if path != "/dummy":
+                    self.log_request(status_code)
+                self.send_response_only(status_code)
+
+                for key, value in headers.items():
+                    if key.lower() not in blacklist_headers:
+                        self.send_header(key, value)
+
+                if self.command.upper() == "OPTIONS":
+                    self.send_header("Allow", "OPTIONS, GET, HEAD, POST")
+
             self.end_headers()
-            return
 
-        path = self.server.cleanPath(self.path)
-        route = self.find_route(path)
-        result = route(self)
+            if data and self.command.upper() not in ["HEAD","OPTIONS"]:
+                self.wfile.write(data)
 
-        blacklist_headers = ["transfer-encoding", "content-length", "content-encoding", "allow", "connection"]
-        status_code = 200 if len(result) < 1 else result[0]
-        data        = b"" if len(result) < 2 else result[1]
-        headers     = { } if len(result) < 3 else result[2]
+            if (path in self.server.dumpRequests or "/" in self.server.dumpRequests) and path != "/dummy":
+                contentLength = self.headers.get('Content-Length')
+                body = None
 
-        if path in self.server.dumpRequests:
-            headers["Access-Control-Allow-Origin"] = "*"
+                if contentLength and int(contentLength) > 0:
+                    body = self.rfile.read(int(contentLength))
 
-        headers["Content-Length"] = len(data)
-
-        if len(headers) == 0:
-            self.send_response(status_code)
-        else:
-            if path != "/dummy":
-                self.log_request(status_code)
-            self.send_response_only(status_code)
-
-            for key, value in headers.items():
-                if key.lower() not in blacklist_headers:
-                    self.send_header(key, value)
-
-            if self.command.upper() == "OPTIONS":
-                self.send_header("Allow", "OPTIONS, GET, HEAD, POST")
-
-        self.end_headers()
-
-        if data and self.command.upper() not in ["HEAD","OPTIONS"]:
-            self.wfile.write(data)
-
-        if (path in self.server.dumpRequests or "/" in self.server.dumpRequests) and path != "/dummy":
-            contentLength = self.headers.get('Content-Length')
-            body = None
-
-            if contentLength and int(contentLength) > 0:
-                body = self.rfile.read(int(contentLength))
-
-            print("===== Connection from:",self.client_address[0])
-            print("%s %s %s" % (self.command, self.path, self.request_version))
-            print(str(self.headers).strip())
-            if body:
-                print()
-                print(body)
-            print("==========")
+                print("===== Connection from:",self.client_address[0])
+                print("%s %s %s" % (self.command, self.path, self.request_version))
+                print(str(self.headers).strip())
+                if body:
+                    print()
+                    print(body)
+                print("==========")
+        except Exception as e:
+            print("Exception on handling http", str(e))
 
     def log_message(self, format, *args):
         if self.server.logRequests:
@@ -148,9 +150,15 @@ class HttpFileServer(HTTPServer):
         return path.strip()
 
     def addFile(self, name, data, mimeType=None):
+
+        if hasattr(data, "read"):
+            fd = data
+            data = data.read()
+            fd.close()
+
         if isinstance(data, str):
             data = data.encode("UTF-8")
-
+    
         headers = { 
             "Access-Control-Allow-Origin": "*",
         }
@@ -159,6 +167,27 @@ class HttpFileServer(HTTPServer):
 
         # return 200 - OK and data
         self.addRoute(name, lambda req: (200, data, headers))
+
+    def add_file_path(self, path, name=None):
+        def readfile():
+            with open(path, "rb") as f:
+                return f.read()
+
+        if name is None:
+            name = os.path.basename(path)
+        self.addRoute(name, lambda req: (200, readfile()))
+
+    def load_directory(self, path, recursive=True, exclude_ext=[]):
+        if not os.path.isdir(path):
+            print("Not a directory:", path)
+            return
+
+        for dp, dn, filenames in os.walk(path):
+            for f in filenames:
+                file_path = os.path.join(dp, f)
+                if not exclude_ext or os.path.splitext(file_path)[1] not in exclude_ext:
+                    relative_path = file_path[len(path):]
+                    self.add_file_path(file_path, relative_path)
 
     def dumpRequest(self, name):
         self.dumpRequests.append(self.cleanPath(name))

@@ -81,6 +81,7 @@ class DnsServer:
         self.debug = False
         self.ttl = 60 * 5
         self.logging = False
+        self.not_found_handler = None
 
     def addEntry(self, type, domain, value):
         if type not in self.entries:
@@ -135,6 +136,8 @@ class DnsServer:
             reply.add_answer(RR(rname=qname, rtype=getattr(QTYPE, rqt), rclass=1, ttl=self.ttl, rdata=entry))
             if self.logging:
                 print(f"Request: {qt} {qn} -> {entry}")
+        elif self.not_found_handler:
+            self.not_found_handler(request, reply)
 
         if self.debug:
             print("DNS RESPONSE:", reply)
