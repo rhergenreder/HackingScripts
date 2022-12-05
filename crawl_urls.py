@@ -79,14 +79,15 @@ class Crawler:
                         self.queue.put(parts._replace(netloc=self.domain, scheme=self.scheme,fragment="").geturl())
 
     def collect_urls(self, page):
-        soup = BeautifulSoup(page, "html.parser")
+        if not isinstance(page, BeautifulSoup):
+            page = BeautifulSoup(page, "html.parser")
 
         urls = set()
         attrs = ["src","href","action"]
         tags = ["a","link","script","img","form"]
 
         for tag in tags:
-            for e in soup.find_all(tag):
+            for e in page.find_all(tag):
                 for attr in attrs:
                     if e.has_attr(attr):
                         urls.add(e[attr])

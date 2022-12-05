@@ -8,6 +8,7 @@ import requests
 import urllib.parse
 import util
 from bs4 import BeautifulSoup
+from crawl_urls import Crawler
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
@@ -208,7 +209,7 @@ class WebServiceFinder:
         litecart_pattern = re.compile(r"^https://www.litecart.net")
         wordpress_pattern = re.compile(r"/wp-(admin|includes|content)/(([^/]+)/)*(wp-emoji-release.min.js|style.min.css)\?ver=([0-9.]+)(&|$)")
 
-        urls = util.collectUrls(soup)
+        urls = Crawler(self.url).collect_urls(soup)
         for url in urls:
             self.printMatch("Moodle", moodle_pattern_1.search(url), version_func=lambda v: self.retrieveMoodleVersion(int(v)))
             self.printMatch("Moodle", moodle_pattern_2.search(url), version_func=lambda v: "%d.%d" % (int(v)//10,int(v)%10))
