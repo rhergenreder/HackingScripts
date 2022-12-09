@@ -12,7 +12,7 @@ if len(sys.argv) < 2:
 FILENAME = sys.argv[1]
 
 # Bind the socket to the port or choose a random one
-address = util.getAddress()
+address = util.get_address()
 port = None if len(sys.argv) < 3 else int(sys.argv[2])
 sock = util.openServer(address, port)
 if not sock:

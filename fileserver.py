@@ -272,7 +272,7 @@ if __name__ == "__main__":
 
     httpPort = 80
     fileServer = HttpFileServer("0.0.0.0", httpPort)
-    ipAddress = util.getAddress()
+    ipAddress = util.get_address()
 
     if sys.argv[1] == "shell":
         listenPort = 4444 if len(sys.argv) < 3 else int(sys.argv[2])

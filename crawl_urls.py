@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+
 class Crawler:
 
     def __init__(self, url):
@@ -34,16 +35,16 @@ class Crawler:
         self.out_of_scope = set()
         self.resources = set()
         self.pages = set()
-    
+
     def request(self, url):
-        headers = { "User-Agent": self.user_agent }
-        kwargs = { "verify": False, "cookies": self.cookies, "headers": headers }
+        headers = {"User-Agent": self.user_agent}
+        kwargs = {"verify": False, "cookies": self.cookies, "headers": headers}
         if self.proxy:
             kwargs["proxy"] = {
                 "http": self.proxy,
                 "https": self.proxy
             }
-        
+
         print("requesting:", url)
         return requests.get(url, **kwargs)
 
@@ -67,24 +68,25 @@ class Crawler:
                 if parts.netloc and parts.netloc != self.domain:
                     self.out_of_scope.add(url)
                 else:
-                    resources_ext = ["jpg", "jpeg", "gif", "png", "css", "js","svg","ico"]
+                    resources_ext = ["jpg", "jpeg", "gif", "png", "css", "js", "svg", "ico"]
                     path, args = parts.path, None
                     if "?" in path:
                         path = path[0:path.index("?")]
-                        args = urllib.parse.parse_args(path[path.index("?")+1:])
+                        args = urllib.parse.parse_args(path[path.index("?") + 1:])
                     if path.rsplit(".", 1)[-1] in resources_ext:
                         self.resources.add(url)
                     else:
                         self.pages.add(url)
-                        self.queue.put(parts._replace(netloc=self.domain, scheme=self.scheme,fragment="").geturl())
+                        self.queue.put(parts._replace(netloc=self.domain, scheme=self.scheme, fragment="").geturl())
 
-    def collect_urls(self, page):
+    @staticmethod
+    def collect_urls(page):
         if not isinstance(page, BeautifulSoup):
             page = BeautifulSoup(page, "html.parser")
 
         urls = set()
-        attrs = ["src","href","action"]
-        tags = ["a","link","script","img","form"]
+        attrs = ["src", "href", "action"]
+        tags = ["a", "link", "script", "img", "form"]
 
         for tag in tags:
             for e in page.find_all(tag):
@@ -98,7 +100,7 @@ class Crawler:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("url", help="The target URI to scan to, e.g. http://example.com:8080/dir/")
-    parser.add_argument("--proxy", help="Proxy to connect through") # TODO
+    parser.add_argument("--proxy", help="Proxy to connect through")  # TODO
     parser.add_argument("--user-agent", help="User-Agent to use")
     parser.add_argument("--cookie", help="Cookies to send", action='append', default=[])
     parser.add_argument('--verbose', '-v', help="Verbose otuput", action='store_true')
@@ -109,7 +111,7 @@ if __name__ == "__main__":
     if args.user_agent:
         crawler.user_agent = args.user_agent
     if args.proxy:
-        crawler.proxy = proxy
+        crawler.proxy = args.proxy
 
     cookie_pattern = re.compile("^([a-zA-Z0-9.%/+_-]+)=([a-zA-Z0-9.%/+_-])*$")
     for cookie in crawler.cookies:
@@ -118,13 +120,13 @@ if __name__ == "__main__":
             print("[-] Cookie does not match pattern:", cookie)
             print("[-] You might need to URL-encode it")
             exit()
-        key, value = (urllib.parse.unquoute(m[1]),urllib.parse.unquoute(m[2]))
+        key, value = (urllib.parse.unquoute(m[1]), urllib.parse.unquoute(m[2]))
         crawler.cookies[key] = value
 
     crawler.start()
 
-    results = { 
-        "Pages": crawler.pages, 
+    results = {
+        "Pages": crawler.pages,
         "Resources": crawler.resources,
         "Out of Scope": crawler.out_of_scope
     }

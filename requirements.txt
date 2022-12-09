@@ -12,3 +12,4 @@ pwntools==4.7.0
 requests==2.23.0
 SocksiPy_branch==1.01
 urllib3==1.25.11
+scapy==2.5.0rc2

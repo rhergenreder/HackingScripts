@@ -48,7 +48,7 @@ class XssServer(BaseHTTPRequestHandler):
     def do_GET(self):
         self._set_headers()
         if self.path == "/xss":
-            cookie_addr = getCookieAddress(util.getAddress(), listen_port)
+            cookie_addr = getCookieAddress(util.get_address(), listen_port)
             self.wfile.write(cookie_addr.encode())
         else:
             self.wfile.write(self._html())
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     listen_port = None if len(sys.argv) < 3 else int(sys.argv[2])
     payload_type = sys.argv[1].lower()
 
-    local_address = util.getAddress()
+    local_address = util.get_address()
 
     # choose random port
     if listen_port is None:
