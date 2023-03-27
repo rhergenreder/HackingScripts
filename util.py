@@ -14,7 +14,14 @@ def isPortInUse(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('127.0.0.1', port)) == 0
 
-def get_address(interface="tun0"):
+def get_address(interface={"tun0", "vpn0"}):
+    if not isinstance(interface, str):
+        requested = set(interface)
+        available = set(ni.interfaces())
+        interfaces = list(requested.intersection(available))
+        interface = None if not interfaces else interfaces[0]
+
+    # not found or not specified, take the first available, which is not loopback
     if not interface in ni.interfaces():
         interfaces = ni.interfaces()
         interfaces.remove('lo')
