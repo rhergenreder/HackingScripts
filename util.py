@@ -3,6 +3,7 @@
 import random
 import socket
 import netifaces as ni
+import string
 import sys
 import exif
 import os
@@ -20,7 +21,7 @@ def get_address(interface={"tun0", "vpn0"}):
         available = set(ni.interfaces())
         interfaces = list(requested.intersection(available))
         interface = None if not interfaces else interfaces[0]
-
+    
     # not found or not specified, take the first available, which is not loopback
     if not interface in ni.interfaces():
         interfaces = ni.interfaces()
@@ -31,6 +32,36 @@ def get_address(interface={"tun0", "vpn0"}):
     addresses = [addresses[ni.AF_INET][i]["addr"] for i in range(len(addresses[ni.AF_INET]))]
     addresses = [addr for addr in addresses if not str(addr).startswith("127")]
     return addresses[0]
+
+def generate_random_string(length=16, charset=string.printable):
+    chars = random.choices(charset, k=length)
+    return "".join(chars)
+
+def exit_with_error(res, err):
+    if callable(err):
+        print(err(res))
+    else:
+        print(err)
+    exit()
+
+def assert_status_code(res, status_code, err=None):
+    if res.status_code != status_code:
+        err = f"[-] Server returned unexpected status code {res.status_code}, expected: {status_code}" if err is None else err
+        exit_with_error(res, err)
+        exit()
+
+def assert_content_type(res, content_type, err=None):
+    if "Content-Type" in res.headers:
+        return
+    content_type_header = res.headers["Content-Type"].lower()
+    if content_type_header == content_type.lower():
+        return
+    if content_type_header.lower().startswith(content_type.lower() + ";"):
+        return
+
+    err = f"[-] Server returned unexpected status code {res.status_code}, expected: {status_code}" if err is None else err
+    exit_with_error(res, err)
+    exit()
 
 def openServer(address, ports=None):
     listenPort = None
