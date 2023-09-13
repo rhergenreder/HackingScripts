@@ -5,7 +5,7 @@
 # Author: Diego Blanco <diego.blanco@treitos.com>
 # GitHub: https://github.com/diego-treitos/linux-smart-enumeration
 #
-lse_version="4.10nw"
+lse_version="4.13nw"
 
 ##( Colors
 #
@@ -611,6 +611,7 @@ lse_get_distro_codename() { #(
   elif [ -f /etc/os-release ]; then
     distro=`grep -E '^ID=' /etc/os-release | cut -f2 -d=`
     echo "$distro" | grep -qi opensuse && distro=opsuse
+    echo "$distro" | grep -qi rhel && distro=redhat
   elif [ -f /etc/redhat-release ]; then
     grep -qi "centos"  /etc/redhat-release && distro=centos
     grep -qi "fedora"  /etc/redhat-release && distro=fedora
@@ -635,7 +636,7 @@ lse_get_pkg_version() { #(
   pkg_name="$1"
   case "$lse_distro_codename" in
     debian|ubuntu)
-      pkg_version=`dpkg -l "$pkg_name" 2>/dev/null | grep -E '^ii' | tr -s ' ' | cut -d' ' -f3`
+      pkg_version=`dpkg -l "$pkg_name" 2>/dev/null | grep -E '^[ih]i' | tr -s ' ' | cut -d' ' -f3`
       ;;
     centos|redhat|fedora|opsuse|rocky|amzn)
       pkg_version=`rpm -q "$pkg_name" 2>/dev/null`
@@ -845,7 +846,7 @@ lse_run_tests_filesystem() {
   #looking for credentials in /etc/fstab and /etc/mtab
   lse_test "fst120" "0" \
     "Are there any credentials in fstab/mtab?" \
-    'grep $lse_grep_opts -Ei "(user|username|login|pass|password|pw|credentials)[=:]" /etc/fstab /etc/mtab'
+    'grep $lse_grep_opts -Ei "(user|username|login|pass|password|pw|credentials|cred)[=:]" /etc/fstab /etc/mtab'
 
   #check if current user has mail
   lse_test "fst130" "1" \
@@ -910,7 +911,7 @@ lse_run_tests_filesystem() {
   #check for SSH files anywhere
   lse_test "fst510" "2" \
     "SSH files anywhere" \
-    'find / $lse_find_opts \( -name "*id_dsa*" -o -name "*id_rsa*" -o -name "known_hosts" -o -name "authorized_hosts" -o -name "authorized_keys" \) -exec ls -la {} \;'
+    'find / $lse_find_opts \( -name "*id_dsa*" -o -name "*id_rsa*" -o -name "*id_ecdsa*" -o -name "*id_ed25519*" -o -name "known_hosts" -o -name "authorized_hosts" -o -name "authorized_keys" \) -exec ls -la {} \;'
 
   #dump hosts.equiv file
   lse_test "fst520" "2" \

@@ -2,6 +2,12 @@
 
 This repository contains self-made and common scripts for information gathering, enumeration and more.
 
+### Installation
+```bash
+git clone git@romanh.de:Roman/HackingScripts
+sudo ln -s HackingScripts $(python -c "import sys;print(sys.path[-1])")/hackingscripts
+```
+
 ### Enumeration: Initial Scans
 - first_scan.sh: Performs initial nmap scan
 - gobuster.sh: Performs gobuster dir scan with raft-large-words-lowercase.txt

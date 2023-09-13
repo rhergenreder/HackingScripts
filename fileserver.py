@@ -137,7 +137,6 @@ class HttpFileServer(HTTPServer):
         self.prefix_routes = { }
         self.is_running = True
         self.listen_thread = None
-        self.has_exited = False
 
     def cleanPath(self, path):
 
@@ -231,9 +230,6 @@ class HttpFileServer(HTTPServer):
         self.listen_thread.start()
         return self.listen_thread
 
-    def start(self):
-        return self.serve_forever()
-
     def get_base_url():
         addr, port = self.server_address
         if port != 80:
@@ -243,27 +239,10 @@ class HttpFileServer(HTTPServer):
 
     def stop(self):
         self.is_running = False
-        time.sleep(1)
-
-        try:
-            # dummy request
-            for i in range(3):
-                requests.get(f"{self.get_base_url()}/dummy")
-                if self.has_exited:
-                    break
-                time.sleep(1)
-        except:
-            pass
-
+        time.sleep(1)       
+        self.shutdown()
         if self.listen_thread != threading.currentThread():
             self.listen_thread.join()
-
-    def serve_forever(self):
-        self.has_exited = False
-        while self.is_running:
-            self.handle_request()
-        self.has_exited = True
-
 
 if __name__ == "__main__":
     if len(sys.argv) < 2 or sys.argv[1] not in ["shell","dump","proxy","xss"]:

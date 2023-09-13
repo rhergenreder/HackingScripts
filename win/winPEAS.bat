@@ -10,6 +10,14 @@ REM Registry scan of other drives besides
 REM /////true or false
 SET long=false
 
+REM Check if the current path contains spaces
+SET "CurrentFolder=%~dp0"
+IF "!CurrentFolder!" NEQ "!CurrentFolder: =!" (
+    ECHO winPEAS.bat cannot run if the current path contains spaces.
+	ECHO Exiting.
+    EXIT /B 1
+)
+
 :Splash
 ECHO.
 CALL :ColorLine "            %E%32m((,.,/((((((((((((((((((((/,  */%E%97m"
@@ -52,7 +60,7 @@ CALL :ColorLine "   %E%41mUse it at your own networks and/or with the network ow
 ECHO.
 
 :SystemInfo
-CALL :ColorLine "%E%32m[*]%E%97m BASIC SYSTEM INFO
+CALL :ColorLine "%E%32m[*]%E%97m BASIC SYSTEM INFO"
 CALL :ColorLine " %E%33m[+]%E%97m WINDOWS OS"
 ECHO.   [i] Check for vulnerabilities for the OS version with the applied patches
 ECHO.   [?] https://book.hacktricks.xyz/windows-hardening/windows-local-privilege-escalation#kernel-exploits
@@ -404,7 +412,7 @@ CALL :T_Progress 1
 
 :CurrentClipboard
 CALL :ColorLine " %E%33m[+]%E%97m CURRENT CLIPBOARD"
-ECHO.   [i] Any password inside the clipboard?
+ECHO.   [i] Any passwords inside the clipboard?
 powershell -command "Get-Clipboard" 2>nul
 ECHO.
 CALL :T_Progress 1
@@ -565,7 +573,7 @@ CALL :T_Progress 2
 
 :AppCMD
 CALL :ColorLine " %E%33m[+]%E%97m AppCmd"
-ECHO.   [?] https://book.hacktricks.xyz/windows-hardening/windows-local-privilege-escalation#appcmd-exe
+ECHO.   [?] https://book.hacktricks.xyz/windows-hardening/windows-local-privilege-escalation#appcmd.exe
 IF EXIST %systemroot%\system32\inetsrv\appcmd.exe ECHO.%systemroot%\system32\inetsrv\appcmd.exe exists. 
 ECHO.
 CALL :T_Progress 2
