@@ -9,6 +9,8 @@ import string
 import sys
 import os
 import io
+import json
+
 from PIL import Image
 
 def isPortInUse(port):
@@ -78,6 +80,27 @@ def assert_header_present(res, header, err=None):
         return
         
     err = f"[-] '{res.url}' did not return header: {header}" if err is None else err
+    exit_with_error(res, err)
+
+def assert_not_empty(res, err=None):
+    if len(res.content) > 0:
+        return
+
+    err = f"[-] '{res.url}' did not return any data" if err is None else err
+    exit_with_error(res, err)
+
+def assert_json_path(res, path, value, err=None):
+    assert_content_type(res, "application/json")
+    assert_not_empty(res)
+
+    json_data = json.loads(res.text)
+    for key in filter(None, path.split(".")):
+        json_data = json_data[key]
+
+    if json_data == value:
+        return
+
+    err = f"[-] '{res.url}' value at path '{path}' does not match. got={json_data} expected={value}" if err is None else err
     exit_with_error(res, err)
 
 def openServer(address, ports=None):

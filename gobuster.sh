@@ -6,4 +6,4 @@ if [ $# -lt 1 ]; then
 fi
 
 HOST=$1
-gobuster dir --url="${HOST}" --wordlist="/usr/share/wordlists/SecLists/Discovery/Web-Content/raft-large-words-lowercase.txt" -b "403,404"  "${@:2}"
+(set -x; gobuster dir --url="${HOST}" --wordlist="/usr/share/wordlists/SecLists/Discovery/Web-Content/raft-large-words-lowercase.txt" -b "403,404"  "${@:2}")
