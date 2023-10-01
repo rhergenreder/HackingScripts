@@ -2,26 +2,21 @@
 
 import sys
 
-def generateTemplate(baseUrl):
-    template = """#!/usr/bin/env python
+def generate_template(base_url, features):
 
-import os
-import sys
-import json
-import time
-import base64
-import requests
-import subprocess
-import urllib.parse
-from bs4 import BeautifulSoup
-from hackingscripts import util, fileserver, rev_shell
+    if "proxy" in features or "burp" in features:
+        proxy = """
+    if \"proxy\" not in kwargs:
+        kwargs[\"proxy\"] = {\"http\":\"http://127.0.0.1:8080\", \"https\":\"http://127.0.0.1:8080\"}
+"""
+    else:
+        proxy = ""
 
-from urllib3.exceptions import InsecureRequestWarning
-requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
+    variables = {
+        "BASE_URL": f'"{base_url}" if "LOCAL" not in sys.argv else "http://127.0.0.1:1337"'
+    }
 
-BASE_URL = "%s" if "LOCAL" not in sys.argv else "http://127.0.0.1:1337"
-
-def request(method, uri, **kwargs):
+    request_method = f"""def request(method, uri, **kwargs):
     if not uri.startswith("/") and uri != "":
         uri = "/" + uri
 
@@ -35,24 +30,78 @@ def request(method, uri, **kwargs):
     
     if "verify" not in kwargs:
         kwargs["verify"] = False
-
+    {proxy}
     return client.request(method, BASE_URL + uri, **kwargs)
+"""
 
+    methods = [request_method]
+
+    if "login" in features or "account" in features:
+        variables["USERNAME"] = '"Blindhero"'
+        variables["PASSWORD"] = '"test1234"'
+        methods.append("""
+def login(username, password):
+    session = requests.Session()
+    res = request("POST", "/login", data={"username": username, "password": password}, session=session)
+    if res.status_code != 200:
+        print("[-] Error logging in")
+        exit()
+    
+    return session
+""")
+
+    if "register" in features or "account" in features:
+        variables["USERNAME"] = '"Blindhero"'
+        variables["PASSWORD"] = '"test1234"'
+        methods.append("""
+def register(username, password):
+    res = request("POST", "/register", data={"username": username, "password": password})
+    if res.status_code != 200:
+        print("[-] Error registering")
+        exit()
+    
+    return True
+""")
+
+    main = """
 if __name__ == "__main__":
     pass
-""" % baseUrl
+"""
 
-    return template
+    variables = "\n".join(f"{k} = {v}" for k, v in variables.items())
+    header = f"""#!/usr/bin/env python
+
+import os
+import re
+import sys
+import json
+import time
+import base64
+import requests
+import subprocess
+import urllib.parse
+from bs4 import BeautifulSoup
+from hackingscripts import util, fileserver, rev_shell
+
+from urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
+
+{variables}
+
+"""
+
+    return header + "".join(methods) + main
 
 if __name__ == "__main__":
 
     if len(sys.argv) < 2:
-        print("Usage: %s <URL>" % sys.argv[0])
+        print("Usage: %s <URL> [features]" % sys.argv[0])
         exit()
 
     url = sys.argv[1]
     if "://" not in url:
         url = "http://" + url
 
-    template = generateTemplate(url)
+    features = [] if len(sys.argv) < 3 else sys.argv[2].split(",")
+    template = generate_template(url, features)
     print(template)

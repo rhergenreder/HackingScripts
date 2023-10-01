@@ -32,6 +32,6 @@ charcountNonExistent=$(curl -s "${PROTOCOL}://$(uuidgen).${DOMAIN}" -k -m 5 | wc
 echo "[+] Chars: ${charcountDomain}, ${charcountIpAddress}, ${charcountNonExistent}"
 echo "[ ] Fuzzing…"
 
-ffuf --fs ${charcountDomain},${charcountIpAddress},${charcountNonExistent} --fc 400 --mc all \
+(set -x; ffuf --fs ${charcountDomain},${charcountIpAddress},${charcountNonExistent} --fc 400 --mc all \
   -w /usr/share/wordlists/SecLists/Discovery/DNS/subdomains-top1million-110000.txt \
-  -u "${PROTOCOL}://${IP_ADDRESS}" -H "Host: FUZZ.${DOMAIN}" "${@:2}"
+  -u "${PROTOCOL}://${IP_ADDRESS}" -H "Host: FUZZ.${DOMAIN}" "${@:2}")

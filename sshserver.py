@@ -66,11 +66,9 @@ class SSHServer:
                     paramiko_connection = ParamikoConnection(self)
                     transport.start_server(server=paramiko_connection)
                     self.transports.append(transport)
-                    # for client_sock in self.client_sockets:
 
                 except BlockingIOError:
                     pass
-                # handle_client(client_socket, client_address)
         finally:
             self.listen_socket.close()
 
@@ -81,7 +79,7 @@ class SSHServer:
 
     def close(self):
         if self.listen_socket:
-            self.listen_socket.close()
+            self.listen_socket.shutdown(socket.SHUT_RDWR)
         for sock in self.client_sockets:
             sock.close()
 
