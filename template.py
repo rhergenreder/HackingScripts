@@ -4,10 +4,10 @@ import sys
 
 def generate_template(base_url, features):
 
-    if "proxy" in features or "burp" in features:
+    if "proxies" in features or "burp" in features:
         proxy = """
-    if \"proxy\" not in kwargs:
-        kwargs[\"proxy\"] = {\"http\":\"http://127.0.0.1:8080\", \"https\":\"http://127.0.0.1:8080\"}
+    if \"proxies\" not in kwargs:
+        kwargs[\"proxies\"] = {\"http\":\"http://127.0.0.1:8080\", \"https\":\"http://127.0.0.1:8080\"}
 """
     else:
         proxy = ""

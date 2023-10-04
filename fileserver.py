@@ -79,9 +79,14 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
             result = route(self)
 
             blacklist_headers = ["transfer-encoding", "content-length", "content-encoding", "allow", "connection"]
-            status_code = 200 if len(result) < 1 else result[0]
-            data        = b"" if len(result) < 2 else result[1]
-            headers     = { } if len(result) < 3 else result[2]
+            if isinstance(result, tuple):
+                status_code = 200 if len(result) < 1 else result[0]
+                data        = b"" if len(result) < 2 else result[1]
+                headers     = { } if len(result) < 3 else result[2]
+            else:
+                status_code = result
+                data = b""
+                headers = {}
 
             if path in self.server.dumpRequests:
                 headers["Access-Control-Allow-Origin"] = "*"
@@ -123,6 +128,7 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
                 print("==========")
         except Exception as e:
             print("Exception on handling http", str(e))
+            raise e
 
     def log_message(self, format, *args):
         if self.server.logRequests:
