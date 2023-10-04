@@ -87,7 +87,7 @@ def assert_empty(res, err=None):
     if not res.content or len(res.content) == 0:
         return
 
-    err = f"[-] '{res.url}' did not return unexpected data" if err is None else err
+    err = f"[-] '{res.url}' returned unexpected data" if err is None else err
     exit_with_error(res, err)
 
 def assert_not_empty(res, err=None):
