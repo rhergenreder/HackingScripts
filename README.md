@@ -2,6 +2,9 @@
 
 This repository contains self-made and common scripts for information gathering, enumeration and more.
 
+### What is this?
+I use this repository mostly for automated exploit chains. HackTheBox machines often involve steps like spawning a http server, serving a file, extracting content, steal data through custom DNS/FTP/SSH servers, spawning a reverse shell etc. Using this library I implement a script-to-root mechanism to chain all these steps together. Since the repository also includes lots of common payloads and binaries, I didn't want to put it on PyPI. If you got any recommendations for me, feel free to contact me!
+
 ### Installation
 ```bash
 git clone git@romanh.de:Roman/HackingScripts
