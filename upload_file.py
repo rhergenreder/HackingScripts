@@ -14,7 +14,7 @@ def serve_file(listen_sock, path, forever=False):
             try:
                 print('[+] Connection from', client_address)
 
-                with open(FILENAME, "rb") as f:
+                with open(path, "rb") as f:
                     content = f.read()
                     connection.sendall(content)
 
@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="File Transfer using netcat")
     parser.add_argument("--port", type=int, required=False, default=None, help="Listening port")
-    parser.add_argument("--path", type=str, required=True, help="Path to the file you wish to upload")
+    parser.add_argument(type=str, dest="path", help="Path to the file you wish to upload")
     args = parser.parse_args()
 
     path = args.path
@@ -40,12 +40,12 @@ if __name__ == "__main__":
         exit(1)
 
     address = util.get_address()
-    sock = util.open_server(address, args.port)
-    if not sock:
+    listen_sock = util.open_server(address, args.port)
+    if not listen_sock:
         exit(1)
 
     print("[+] Now listening, download file using:")
-    print('nc %s %d > %s' % (address, sock.getsockname()[1], os.path.basename(path)))
+    print('nc %s %d > %s' % (address, listen_sock.getsockname()[1], os.path.basename(path)))
     print()
 
     serve_file(listen_sock, path, forever=True)

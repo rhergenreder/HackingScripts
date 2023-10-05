@@ -5,9 +5,13 @@ download () {
   wget --no-verbose "$1" -O "$tmpfile"
   status=$?
   if [ $status -eq 0 ]; then
-    old_permissions=$(stat -c "%a" "$2")
-    mv "$tmpfile" "$2"
-    chmod "$old_permissions" "$2"
+    if [ -f "$2" ]; then
+      old_permissions=$(stat -c "%a" "$2")
+      mv "$tmpfile" "$2"
+      chmod "$old_permissions" "$2"
+    else
+      mv "$tmpfile" "$2"
+    fi
   fi
 }
 
@@ -61,3 +65,7 @@ fi
 echo "Updating windows tools…"
 download https://live.sysinternals.com/accesschk.exe win/accesschk.exe
 download https://live.sysinternals.com/accesschk64.exe win/accesschk64.exe
+download https://github.com/k4sth4/Juicy-Potato/raw/main/x86/jp32.exe win/JuicyPotato.exe
+download https://github.com/k4sth4/Juicy-Potato/raw/main/x64/jp.exe win/JuicyPotato64.exe
+download https://github.com/uknowsec/SweetPotato/raw/master/SweetPotato-Webshell-new/bin/Release/SweetPotato.exe win/SweetPotato.exe
+download https://github.com/BeichenDream/GodPotato/releases/latest/download/GodPotato-NET4.exe win/GodPotato.exe
