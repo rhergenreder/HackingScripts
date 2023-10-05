@@ -88,7 +88,7 @@ if __name__ == "__main__":
 
     # choose random port
     if listen_port is None:
-        sock = util.openServer(local_address)
+        sock = util.open_server(local_address)
         if not sock:
             exit(1)
         listen_port = sock.getsockname()[1]
