@@ -189,9 +189,9 @@ def genSyscall(elf, syscall, registers):
     rop.raw(rop.find_gadget([syscall_gadget]).address)
     return rop
 
-def pad(x, n):
+def pad(x, n, b=b"\x00"):
     if len(x) % n != 0:
-        x  += (n-(len(x)%n))*b"\x00"
+        x  += (n-(len(x)%n))*b
     return x
 
 def xor(a, b):
