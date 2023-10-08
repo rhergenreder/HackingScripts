@@ -236,12 +236,19 @@ class HttpFileServer(HTTPServer):
         self.listen_thread.start()
         return self.listen_thread
 
-    def get_base_url():
+    def get_base_url(self, ip_addr=None):
         addr, port = self.server_address
         if port != 80:
             port = f":{port}"
-        protocol = "https" if gettype(self.socket) == ssl.SSLSocket else "http"
+        if ip_addr is not None:
+            addr = ip_addr
+        protocol = "https" if type(self.socket) == ssl.SSLSocket else "http"
         return f"{protocol}://{addr}{port}"
+
+    def get_full_url(self, uri):
+        if not uri.startswith("/"):
+            uri = "/" + uri
+        return self.get_base_url() + uri
 
     def stop(self):
         self.is_running = False
@@ -278,4 +285,4 @@ if __name__ == "__main__":
         print("Exfiltrate data using:")
         print(xss)
 
-    fileServer.start()
+    fileServer.serve_forever()

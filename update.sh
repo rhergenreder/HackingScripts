@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Usage: download_zip <url> <destination file>
 download () {
   tmpfile=$(mktemp /tmp/wget.XXXXXX)
   wget --no-verbose "$1" -O "$tmpfile"
@@ -15,6 +16,17 @@ download () {
   fi
 }
 
+# Usage: download_zip <url> <destination directory> [files]
+download_zip () {
+  tmpfile=$(mktemp /tmp/wget.XXXXXX)
+  wget --no-verbose "$1" -O "$tmpfile"
+  status=$?
+  if [ $status -eq 0 ]; then
+    unzip -o "$tmpfile" -d $2 "${@:3}"
+  fi
+}
+
+# Usage: get_latest_version <url> <version prefix>
 get_latest_version () {
   repository=$1
   prefix=$2
@@ -69,3 +81,4 @@ download https://github.com/k4sth4/Juicy-Potato/raw/main/x86/jp32.exe win/JuicyP
 download https://github.com/k4sth4/Juicy-Potato/raw/main/x64/jp.exe win/JuicyPotato64.exe
 download https://github.com/uknowsec/SweetPotato/raw/master/SweetPotato-Webshell-new/bin/Release/SweetPotato.exe win/SweetPotato.exe
 download https://github.com/BeichenDream/GodPotato/releases/latest/download/GodPotato-NET4.exe win/GodPotato.exe
+download_zip https://github.com/BloodHoundAD/SharpHound/releases/download/v2.0.1/SharpHound-v2.0.1.zip win/ SharpHound.exe SharpHound.ps1
