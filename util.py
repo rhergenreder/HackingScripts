@@ -30,13 +30,21 @@ def get_address(interface={"tun0", "vpn0"}):
     # not found or not specified, take the first available, which is not loopback
     if not interface in ni.interfaces():
         interfaces = ni.interfaces()
-        interfaces.remove('lo')
-        interface = interfaces[0]
-
-    addresses = ni.ifaddresses(interface)
-    addresses = [addresses[ni.AF_INET][i]["addr"] for i in range(len(addresses[ni.AF_INET]))]
-    addresses = [addr for addr in addresses if not str(addr).startswith("127")]
-    return addresses[0]
+        for interface in interfaces:
+            if interface == "lo":
+                continue
+            addresses = ni.ifaddresses(interface)
+            addresses = [addresses[ni.AF_INET][i]["addr"] for i in range(len(addresses[ni.AF_INET]))]
+            addresses = [addr for addr in addresses if not str(addr).startswith("127")]
+            if addresses:
+                return addresses[0]
+        
+        print("[-] Could not find a network interface card with a valid ipv4")
+    else:
+        addresses = ni.ifaddresses(interface)
+        addresses = [addresses[ni.AF_INET][i]["addr"] for i in range(len(addresses[ni.AF_INET]))]
+        addresses = [addr for addr in addresses if not str(addr).startswith("127")]
+        return addresses[0]
 
 def generate_random_string(length=16, charset=string.printable):
     chars = random.choices(charset, k=length)
