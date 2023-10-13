@@ -274,7 +274,7 @@ if __name__ == "__main__":
         "--bind-address",
         type=str,
         default="0.0.0.0",
-        destination="bind_addr"
+        dest="bind_addr",
         help="Address to bind on (default: 0.0.0.0)"
     )
 
@@ -295,7 +295,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    file_server = HttpFileServer(args.address, args.port)
+    file_server = HttpFileServer(args.bind_addr, args.port)
     ip_address = util.get_address()
 
     if args.action == "shell":
