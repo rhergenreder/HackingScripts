@@ -106,6 +106,16 @@ def assert_not_empty(res, err=None):
     err = f"[-] '{res.url}' did not return any data" if err is None else err
     exit_with_error(res, err)
 
+def assert_content_contains(res, data, err=None):
+    util.assert_not_empty(res)
+    if isinstance(data, str) and data in res.text:
+        return True
+    elif data in res.content:
+        return True
+    
+    err = f"[-] '{res.url}' did not include '{data} in response" if err is None else err
+    exit_with_error(res, err)
+
 def assert_json_path(res, path, value, err=None):
     assert_content_type(res, "application/json")
     assert_not_empty(res)
@@ -197,9 +207,18 @@ def genSyscall(elf, syscall, registers):
     rop.raw(rop.find_gadget([syscall_gadget]).address)
     return rop
 
-def pad(x, n, b=b"\x00"):
+def lpad(x, n, b=b"\x00"):
+    return pad(x, n, b, "l")
+
+def rpad(x, n, b=b"\x00"):
+    return pad(x, n, b, "r")
+
+def pad(x, n, b=b"\x00", s="r"):
     if len(x) % n != 0:
-        x  += (n-(len(x)%n))*b
+        if s == "r":
+            x += (n-(len(x)%n))*b
+        elif s == "l":
+            x = (n-(len(x)%n))*b + x
     return x
 
 def xor(a, b):

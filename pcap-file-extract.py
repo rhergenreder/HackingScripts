@@ -1,3 +1,5 @@
+#!/bin/python
+
 import argparse
 import os
 import re
@@ -191,7 +193,16 @@ class PcapExtractor:
         self._packets = rdpcap(self.pcap_path)
 
     def extract_all(self):
-        pass
+        self._open_file()
+        http_packets = self._parse_http_packets()
+        filtered_packets = self._apply_filters(http_packets)
+        for packet in filtered_packets:
+            if len(packet.payload) > 0:
+                file_path = packet.get_file_path()
+                with open(os.path.join(self.output_dir, file_path.replace("/", "_")), "wb") as f:
+                    f.write(packet.payload)
+                
+                print(f"[+] Extracted: {file_path} {util.human_readable_size(len(packet.payload))} Bytes")
 
     def _apply_filters(self, packets):
         filtered_packets = packets
@@ -207,12 +218,31 @@ class PcapExtractor:
             print(packet)
 
     def get_http_packet(self, packet_iterator, sock_src, initial_packet):
-        http_buffer = bytes(initial_packet[TCP].payload)
+        http_buffer = raw(initial_packet[TCP].payload)
+        prev_seq = initial_packet[TCP].seq
+        buff = None
         while packet_iterator.has_more():
             next_packet = packet_iterator.peek()
             if sock_src == f"{next_packet[IP].src}:{next_packet[TCP].sport}":
                 next_packet = packet_iterator.pop()
-                http_buffer += bytes(next_packet[TCP].payload)
+
+                if buff is not None:
+                    # if there is a buffered package, and the seq. number was not reused
+                    if buff[0] != next_packet[TCP].seq:
+                        # append this to output
+                        http_buffer += buff[1]
+                    buff = None
+
+                payload_len = len(next_packet[TCP].payload)
+                if next_packet[TCP].seq - prev_seq != payload_len and payload_len == 1:
+                    buff = (next_packet[TCP].seq, raw(next_packet[TCP].payload))
+                    # potential TCP ZeroWindowProbe
+                    continue
+
+                assert next_packet[TCP].seq > prev_seq
+                assert next_packet[IP].frag == 0
+                http_buffer += raw(next_packet[TCP].payload)
+                prev_seq = next_packet[TCP].seq
             else:
                 break
 
@@ -268,7 +298,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output-dir", help="Path to destination directory", default="extracted_files/",
                         dest="output_dir")
     parser.add_argument("-l", "--list", help="List available files only", default=False, action="store_true")
-    parser.add_argument("-e", "--extract", help="Extract files (default)", default=None, action="store_true")
+    parser.add_argument("-e", "--extract", help="Extract files (default)", default=True, action="store_true")
     parser.add_argument("-ec", "--exclude-codes", help="Exclude http status codes, default: 101,304,403,404",
                         default="101,304,403,404", dest="exclude_codes")
     parser.add_argument("-ic", "--include-codes", help="Limit http status codes", type=str,

