@@ -36,11 +36,11 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
         #     target += "?" if "?" not in target else "&"
         #     target += queryStr
 
-        contentLength = self.headers.get('Content-Length')
+        content_length = self.headers.get('Content-Length')
         data = None
 
-        if contentLength and int(contentLength) > 0:
-            data = self.rfile.read(int(contentLength))
+        if content_length and int(content_length) > 0:
+            data = self.rfile.read(int(content_length))
 
         if "Host" in self.headers:
             del self.headers["Host"]
@@ -114,11 +114,11 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(data)
 
             if (path in self.server.dumpRequests or "/" in self.server.dumpRequests) and path != "/dummy":
-                contentLength = self.headers.get('Content-Length')
+                content_length = self.headers.get('Content-Length')
                 body = None
 
-                if contentLength and int(contentLength) > 0:
-                    body = self.rfile.read(int(contentLength))
+                if content_length and int(content_length) > 0:
+                    body = self.rfile.read(int(content_length))
 
                 print("===== Connection from:",self.client_address[0])
                 print("%s %s %s" % (self.command, self.path, self.request_version))
@@ -168,8 +168,9 @@ class HttpFileServer(HTTPServer):
         headers = { 
             "Access-Control-Allow-Origin": "*",
         }
+        
         if mimeType:
-            headers["Content-Type"] = headers
+            headers["Content-Type"] = mimeType
 
         # return 200 - OK and data
         self.addRoute(name, lambda req: (200, data, headers))

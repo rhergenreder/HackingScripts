@@ -107,13 +107,21 @@ def assert_not_empty(res, err=None):
     exit_with_error(res, err)
 
 def assert_content_contains(res, data, err=None):
-    util.assert_not_empty(res)
+    assert_not_empty(res)
     if isinstance(data, str) and data in res.text:
         return True
     elif data in res.content:
         return True
     
-    err = f"[-] '{res.url}' did not include '{data} in response" if err is None else err
+    err = f"[-] '{res.url}' did not include '{data}' in response" if err is None else err
+    exit_with_error(res, err)
+
+def assert_cookie_present(res, cookie_name, err=None):
+    assert_header_present(res, "Set-Cookie")
+    if cookie_name in res.cookies:
+        return True
+    
+    err = f"[-] '{res.url}' did not set-cookie '{cookie_name}'" if err is None else err
     exit_with_error(res, err)
 
 def assert_json_path(res, path, value, err=None):
