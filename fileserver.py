@@ -50,6 +50,15 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
         res = requests.request(method, target_rewrite, headers=self.headers, data=data)
         return res.status_code, res.content, res.headers
 
+    def read_body(self):
+        if not hasattr(self, "body"):
+            content_length = self.headers.get('Content-Length')
+            if content_length and int(content_length) > 0:
+                self.body = self.rfile.read(int(content_length))
+            else:
+                self.body = None
+
+        return self.body
 
     def find_route(self, path):
 
@@ -111,14 +120,12 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
             if data and self.command.upper() not in ["HEAD","OPTIONS"]:
+                if isinstance(data, str):
+                    data = data.encode()
                 self.wfile.write(data)
 
             if (path in self.server.dumpRequests or "/" in self.server.dumpRequests) and path != "/dummy":
-                content_length = self.headers.get('Content-Length')
-                body = None
-
-                if content_length and int(content_length) > 0:
-                    body = self.rfile.read(int(content_length))
+                body = self.read_body()
 
                 print("===== Connection from:",self.client_address[0])
                 print("%s %s %s" % (self.command, self.path, self.request_version))
