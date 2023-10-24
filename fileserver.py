@@ -247,11 +247,14 @@ class HttpFileServer(HTTPServer):
 
     def get_base_url(self, ip_addr=None):
         addr, port = self.server_address
-        if port != 80:
-            port = f":{port}"
+    
         if ip_addr is not None:
             addr = ip_addr
+
         protocol = "https" if type(self.socket) == ssl.SSLSocket else "http"
+        if (int(port) == 80 and protocol == "http") or (int(port) == 443 and protocol == "https"):
+            port = ""
+    
         return f"{protocol}://{addr}{port}"
 
     def get_full_url(self, uri, ip_addr=None):

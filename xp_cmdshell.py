@@ -44,7 +44,6 @@ class XpShell(cmd.Cmd):
             print('Exception: ')
             print(str(e))
             raise e
-            pass
 
     # i wont say what it does
     def do_exit(self, arg):
@@ -151,8 +150,9 @@ def connect_mssql(ip, port=1433, username="sa", password="", domain=""):
     # do database connection (simple for now)
     ms_sql = tds.MSSQL(ip, port)
     ms_sql.connect()
-    res = ms_sql.login(database = None, username=username, password=password, domain=domain)
+    res = ms_sql.login(database=None, username=username, password=password, domain=domain)
     ms_sql.printReplies()
+    print(res)
     if res:
         return XpShell(ms_sql)
     else:
@@ -167,12 +167,13 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="Connect to mssql server using username, password, and hostname.")
     parser.add_argument('-u', '--username', required=True, help="Username for the server")
-    parser.add_argument('-p', '--password', required=True, help="Password for the server")
+    parser.add_argument('-p', '--password', required=False, default="", help="Password for the server")
     parser.add_argument('-H', '--hostname', required=True, help="Hostname or IP address of the server")
+    parser.add_argument('-d', '--domain', required=False, default=None, help="Domain the user belongs to")
     args = parser.parse_args()
 
     # if connection successful
-    xp_shell = connect_mssql(args.hostname, username=args.username, password=args.password)
+    xp_shell = connect_mssql(args.hostname, username=args.username, password=args.password, domain=args.domain)
     if isinstance(xp_shell, XpShell):
         xp_shell.do_enable_xp_cmdshell()
         xp_shell.pwsh = True

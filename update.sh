@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Usage: download_zip <url> <destination file>
+# Usage: download <url> <destination file>
 download () {
   tmpfile=$(mktemp /tmp/wget.XXXXXX)
   wget --no-verbose "$1" -O "$tmpfile"
@@ -48,6 +48,7 @@ download https://raw.githubusercontent.com/diego-treitos/linux-smart-enumeration
 download https://raw.githubusercontent.com/mzet-/linux-exploit-suggester/master/linux-exploit-suggester.sh linux-exploit-suggester.sh
 download https://github.com/rebootuser/LinEnum/raw/master/LinEnum.sh LinEnum.sh
 download https://github.com/stealthcopter/deepce/raw/main/deepce.sh deepce.sh
+download https://raw.githubusercontent.com/topotam/PetitPotam/main/PetitPotam.py PetitPotam.py
 
 echo "Updating LinPEAS + WinPEAS…"
 peas_version=$(get_latest_version carlospolop/PEASS-ng)
