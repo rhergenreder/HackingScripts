@@ -664,7 +664,7 @@ sub makeRequest {
 		$proxyUrl .= $proxyAuth."@";
  	}
  	$proxyUrl .= $proxy;
- 	$lwp->proxy(['http'], "http://".$proxy);
+ 	$lwp->proxy(['http', 'https'], "http://".$proxy);
 	$ENV{HTTPS_PROXY} = "http://".$proxy;
   }
 

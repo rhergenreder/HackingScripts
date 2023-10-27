@@ -10,6 +10,7 @@ import string
 import sys
 import os
 import io
+import re
 import json
 
 def is_port_in_use(port):
@@ -17,7 +18,7 @@ def is_port_in_use(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('127.0.0.1', port)) == 0
 
-def get_payload_path(path):
+def get_payload_path(path=""):
     return os.path.realpath(os.path.join(os.path.dirname(__file__), path))
 
 def get_address(interface={"tun0", "vpn0"}):
@@ -136,6 +137,18 @@ def assert_json_path(res, path, value, err=None):
         return
 
     err = f"[-] '{res.url}' value at path '{path}' does not match. got={json_data} expected={value}" if err is None else err
+    exit_with_error(res, err)
+
+def assert_regex_match(pattern, data, err=None):
+
+    if not isinstance(pattern, re.Pattern):
+        pattern = re.compile(pattern)
+        
+    match = pattern.match(data)
+    if match:
+        return match
+
+    err = f"[-] Data does not match pattern '{pattern}': '{data}'" if err is None else err
     exit_with_error(res, err)
 
 def open_server(address, ports=None, retry=True):
