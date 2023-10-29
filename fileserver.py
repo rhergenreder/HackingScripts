@@ -254,6 +254,8 @@ class HttpFileServer(HTTPServer):
         protocol = "https" if type(self.socket) == ssl.SSLSocket else "http"
         if (int(port) == 80 and protocol == "http") or (int(port) == 443 and protocol == "https"):
             port = ""
+        else:
+            port = f":{port}"
     
         return f"{protocol}://{addr}{port}"
 
