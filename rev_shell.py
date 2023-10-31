@@ -126,7 +126,7 @@ class ShellListener:
             if data.endswith(b"# ") or data.endswith(b"$ "):
                 return True
         elif self.os == "win":
-            if data.endswith(b"> ") or data.endswith(b">"):
+            if data.endswith(b"> ") or data.endswith(b">") or data.endswith(b"$ "):
                 return True
         
         return False
@@ -210,6 +210,7 @@ class ShellListener:
             print("[-] No method specified, assuming 'echo'")
             method = echo
 
+        print(f"[ ] Writing file '{path}' using method: {method}")
         send_func = self.sendline if not sync else self.exec_sync
 
         def write_chunk(chunk, first=False):
@@ -243,7 +244,7 @@ class ShellListener:
                 if isinstance(data_or_fd, str):
                     data_or_fd = data_or_fd.encode()
                 for offset in range(0, len(data_or_fd), chunk_size):
-                    write_chunk(data_or_fd[offset:chunk_size], offset == 0)
+                    write_chunk(data_or_fd[offset:offset+chunk_size], offset == 0)
                     
             if method == "powershell":
                 send_func(f"$stream.Close()")
@@ -270,6 +271,8 @@ class ShellListener:
 
         if permissions and self.os == "unix":
             send_func(f"chmod {permissions} {path}")
+        
+        print("[+] Done!")
 
 class ParamikoTunnelServer(SocketServer.ThreadingTCPServer):
     daemon_threads = True
