@@ -12,6 +12,7 @@ import os
 import io
 import re
 import json
+import urllib.parse
 
 def is_port_in_use(port):
     import socket
@@ -175,36 +176,111 @@ def open_server(address, ports=None, retry=True):
             raise e
 
 class Stack:
-    def __init__(self, startAddress):
+    def __init__(self, start_address, word_size=8):
         self.buffer = b""
-        self.address = startAddress
+        self.word_size = word_size
+        self.address = start_address
 
-    def pushString(self, data):
-        addr = self.address
-        data = pad(data.encode() + b"\x00", 8)
-        self.buffer += data
-        self.address += len(data)
-        return addr
+    def push_buffer(self, data, reverse=False):
+        data_length = len(data)
+        if data_length % self.word_size != 0:
+            print("[-] Cannot push uneven data to stack, got:", len(data))
+            exit()
 
-    def pushAddr(self, addr):
+        if not reverse:
+            self.buffer += data
+        else:
+            words = [data[i:i+self.word_size] for i in range(0, data_length, self.word_size)]
+            self.buffer += b"".join(words[::-1])
+
+        self.address += data_length
+
+    def push_string(self, data):
         ptr = self.address
-        data = p64(addr)
+        data = pad(data.encode() + b"\x00", self.word_size)
         self.buffer += data
         self.address += len(data)
         return ptr
 
-    def pushArray(self, arr):
+    def pop_word(self):
+        addr = self.buffer[-self.word_size:]
+        self.buffer = self.buffer[0:-self.word_size]
+        self.address -= self.word_size
+        return addr
+
+    def pack_value(self, value):
+        if self.word_size == 8:
+            return p64(value)
+        else:
+            print("Not implemented: pack_value with word size:", self.word_size)
+
+    def unpack_value(self, value):
+        if self.word_size == 8:
+            return u64(value)
+        else:
+            print("Not implemented: unpack_value with word size:", self.word_size)
+
+    def push_word(self, value):
+        ptr = self.address
+
+        if type(value) not in [bytes, bytearray]:
+            value = self.pack_value(value)
+
+        self.buffer += value
+        self.address += self.word_size
+        return ptr
+
+    def push_array(self, arr):
         addresses = []
         for arg in arr:
-            arg_addr = self.pushString(arg)
+            arg_addr = self.push_string(arg)
             addresses.append(arg_addr)
         addresses.append(0x0)
 
-        addr = self.address
+        ptr = self.address
         for arg_addr in addresses:
-            self.pushAddr(arg_addr)
+            self.push_word(arg_addr)
 
-        return addr
+        return ptr
+
+    def check_addr(self, addr, verbose=True):
+        if addr > self.address:
+            if verbose:
+                print(f"[ ] Stack overflow: addr={hex(addr)} top={hex(self.address)}")
+            return False
+        elif self.address - addr > len(self.buffer):
+            if verbose:
+                print(f"[ ] Stack underflow: addr={hex(addr)} top={hex(self.address)} size={hex(len(self.buffer))}")
+            return False
+        
+        return True
+
+    def read_bytes(self, start_addr, end_addr):
+        # check bounds
+        if not self.check_addr(start_addr) or not self.check_addr(end_addr):
+            return None
+        elif start_addr > end_addr:
+            print(f"[-] Invalid bounds start={hex(start_addr)} end={hex(end_addr)}")
+            return None
+        
+        start = self.address - start_addr
+        end = self.address - end_addr
+        return self.buffer[start:end]
+
+    def peek_bytes(self, n):
+        return self.buffer[-n:]
+
+    def peek_word(self, n = 0):
+        if n == 0:
+            return self.buffer[-self.word_size * (n + 1):]
+        else:
+            return self.buffer[-self.word_size * (n + 1):-self.word_size * n]
+
+    def print(self):
+        for offset in range(0, len(self.buffer) // self.word_size):
+            hex_bytes = self.peek_word(offset).hex(" ")
+            addr = self.address - offset * self.word_size
+            print(f"\t{hex(addr)}\t{hex_bytes}")
 
 def setRegisters(elf, registers):
     from pwn import ROP
@@ -267,6 +343,7 @@ def xor(a, b):
 
 def base64urldecode(data):
     if isinstance(data, str):
+        data = urllib.parse.unquote(data)
         data = data.encode()
 
     return base64.urlsafe_b64decode(data + b'=' * (4 - len(data) % 4))
