@@ -1,6 +1,13 @@
 <?php
 
 error_reporting(E_ALL);
+if (function_exists("mysqli_connect")) {
+  $db_driver = "mysqli";
+} else if (class_exists("PDO")) {
+  $db_driver = "PDO";
+} else {
+  die("Neither mysqli nor PDO could be found. Exiting.");
+}
 
 if (php_sapi_name() === "cli") {
   $username = $argv[1];
@@ -18,37 +25,67 @@ if (php_sapi_name() === "cli") {
   $dump_all = isset($_REQUEST["dumpAll"]);
 }
 
-$link = mysqli_connect($host, $username, $password, $database);
-if (!$link) {
-  die("Error connecting to mysql: " . mysqli_connect_error() . " (" . mysqli_connect_errno() . ")");
+if ($db_driver === "mysqli") {
+  $link = mysqli_connect($host, $username, $password, $database);
+  if (!$link) {
+    die("Error connecting to mysql: " . mysqli_connect_error() . " (" . mysqli_connect_errno() . ")");
+  }
+} else if ($db_driver === "PDO") {
+  $databaseStr = $database ? ";dbname=$database" : "";
+  $link = new PDO("mysql:host=$host$databaseStr", $username, $password);
+  $link->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 }
 
 if ($dump_all) {
-  $res = mysqli_query($link, "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='$database'");
-  $tables = array();
-  while ($row = $res->fetch_assoc()) {
-    $tables[] = $row["TABLE_NAME"];
-  }  
+  $tables = array();  
+
+  if ($db_driver === "mysqli") {
+    $res = mysqli_query($link, "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='$database'");
+    while ($row = $res->fetch_assoc()) {
+      $tables[] = $row["TABLE_NAME"];
+    }  
+  } else if ($db_driver === "PDO") {
+    $stmt = $link->query("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='$database'");
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+      $tables[] = $row["TABLE_NAME"];
+    }
+  }
 
   foreach ($tables as $tableName) {
     echo "-- DATA FOR TABLE: tableName\n";
-    $res = mysqli_query($link, "SELECT * FROM $tableName");
-    while ($row = $res->fetch_assoc()) {
-      var_dump($row);
+    if ($db_driver === "mysqli") {
+      $res = mysqli_query($link, "SELECT * FROM $tableName");
+      while ($row = $res->fetch_assoc()) {
+        print_r($row);
+      }
+    } else if ($db_driver === "PDO") {
+      $stmt = $link->query("SELECT * FROM $tableName");
+      while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        print_r($row);
+      }
     }
     echo "-- --------------------------\n\n";
   }
   
 } else {
-  $res = mysqli_query($link, $query);
-  if (!$res) {
-    die("Error executing query: " . mysqli_error($link));
+  if ($db_driver === "mysqli") {
+    $res = mysqli_query($link, $query);
+    if (!$res) {
+      die("Error executing query: " . mysqli_error($link));
+    }
+
+    while ($row = $res->fetch_assoc()) {
+      print_r($row);
+    }
+  } else if ($db_driver === "PDO") {
+    $stmt = $link->query($query);
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+      print_r($row);
+    }
   }
 }
 
-while ($row = $res->fetch_assoc()) {
-  var_dump($row);
+if ($db_driver === "mysqli") {
+  mysqli_close($link);
 }
-
-mysqli_close($link);
 ?>

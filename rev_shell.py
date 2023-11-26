@@ -187,6 +187,7 @@ class ShellListener:
         sys.stdout.flush()
 
     def interactive(self):
+        print("[ ] Switching to interactive mode")
         self.on_message.append(lambda x: self.print_message(x))
         while self.running and self.connection is not None:
             self.sendline(input())
