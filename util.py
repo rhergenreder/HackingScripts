@@ -346,13 +346,20 @@ def base64urldecode(data):
         data = urllib.parse.unquote(data)
         data = data.encode()
 
-    return base64.urlsafe_b64decode(data + b'=' * (4 - len(data) % 4))
+    if len(data) % 4 > 0:
+        data += b'=' * (4 - len(data) % 4)
 
-def base64urlencode(data):
+    return base64.urlsafe_b64decode(data)
+
+def base64urlencode(data, strip_padding=True):
     if isinstance(data, str):
         data = data.encode()
 
-    return base64.urlsafe_b64encode(data)
+    encoded = base64.urlsafe_b64encode(data)
+    if strip_padding:
+        encoded = encoded.rstrip(b"=")
+
+    return encoded
 
 def set_exif_data(payload="<?php system($_GET['c']);?>", _in=None, _out=None, exif_tag=None, _format=None):
     import exif

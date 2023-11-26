@@ -64,7 +64,7 @@ fi
 
 echo "Updating Chisel…"
 chisel_version=$(get_latest_version jpillora/chisel v)
-if [ ! -z "$peas_version" ]; then
+if [ ! -z "$chisel_version" ]; then
   echo "Got Chisel version: $chisel_version"
   curl -s -L "https://github.com/jpillora/chisel/releases/download/v${chisel_version}/chisel_${chisel_version}_linux_386.gz" | gzip -d > chisel
   curl -s -L "https://github.com/jpillora/chisel/releases/download/v${chisel_version}/chisel_${chisel_version}_linux_amd64.gz" | gzip -d > chisel64
@@ -78,8 +78,15 @@ fi
 echo "Updating windows tools…"
 download https://live.sysinternals.com/accesschk.exe win/accesschk.exe
 download https://live.sysinternals.com/accesschk64.exe win/accesschk64.exe
+download https://github.com/int0x33/nc.exe/raw/master/nc.exe win/nc.exe
+download https://github.com/int0x33/nc.exe/raw/master/nc64.exe win/nc64.exe
 download https://github.com/k4sth4/Juicy-Potato/raw/main/x86/jp32.exe win/JuicyPotato.exe
 download https://github.com/k4sth4/Juicy-Potato/raw/main/x64/jp.exe win/JuicyPotato64.exe
 download https://github.com/uknowsec/SweetPotato/raw/master/SweetPotato-Webshell-new/bin/Release/SweetPotato.exe win/SweetPotato.exe
 download https://github.com/BeichenDream/GodPotato/releases/latest/download/GodPotato-NET4.exe win/GodPotato.exe
-download_zip https://github.com/BloodHoundAD/SharpHound/releases/download/v2.0.1/SharpHound-v2.0.1.zip win/ SharpHound.exe SharpHound.ps1
+
+sharphound_version=$(get_latest_version BloodHoundAD/SharpHound v)
+if [ ! -z "$sharphound_version" ]; then
+  echo "Got Chisel version: $sharphound_version"
+  download_zip https://github.com/BloodHoundAD/SharpHound/releases/download/v${sharphound_version}/SharpHound-v${sharphound_version}.zip win/ SharpHound.exe SharpHound.ps1
+fi

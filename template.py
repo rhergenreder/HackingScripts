@@ -13,7 +13,8 @@ def generate_template(base_url, features):
         proxy = ""
 
     variables = {
-        "BASE_URL": f'"{base_url}" if "LOCAL" not in sys.argv else "http://127.0.0.1:1337"'
+        "BASE_URL": f'"{base_url}" if "LOCAL" not in sys.argv else "http://127.0.0.1:1337"',
+        "IP_ADDRESS": "util.get_address()",
     }
 
     request_method = f"""def request(method, uri, **kwargs):
@@ -84,7 +85,8 @@ import requests
 import subprocess
 import urllib.parse
 from bs4 import BeautifulSoup
-from hackingscripts import util, fileserver, rev_shell
+from hackingscripts import util, rev_shell
+from hackingscripts.fileserver import HttpFileServer
 
 from urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
