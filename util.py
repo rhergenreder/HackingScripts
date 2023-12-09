@@ -19,6 +19,9 @@ def is_port_in_use(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('127.0.0.1', port)) == 0
 
+def nvl(a, b):
+    return b if a is None else a
+
 def get_payload_path(path=""):
     return os.path.realpath(os.path.join(os.path.dirname(__file__), path))
 
