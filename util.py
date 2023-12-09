@@ -319,6 +319,11 @@ def pad(x, n, b=b"\x00", s="r"):
     return x
 
 def xor(a, b):
+    if isinstance(a, int):
+        a = a.to_bytes(math.ceil(math.log(a)/math.log(2)/8.0))
+    if isinstance(b, int):
+        b = b.to_bytes(math.ceil(math.log(b)/math.log(2)/8.0))
+
     if len(a) == 0 or len(b) == 0:
         return a
 
@@ -332,9 +337,9 @@ def xor(a, b):
     if type(a) == str and type(b) == str:
         return "".join([chr(ord(c1) ^ ord(c2)) for (c1,c2) in zip(a, b) ])
     else:
-        if type(a) != bytes:
+        if type(a) not in (bytes, bytearray):
             a = a.encode()
-        if type(b) != bytes:
+        if type(b) not in (bytes, bytearray):
             b = b.encode()
 
         
