@@ -6,24 +6,26 @@ import re
 from abc import ABC, abstractmethod
 from scapy.all import *
 from hackingscripts import util
+from collections import OrderedDict
 
 
 class HttpPacket(ABC):
-    def __init__(self, version):
+    def __init__(self, sock_src, version):
         self.version = version
         self.headers = util.CaseInsensitiveDict()
         self.payload = None
+        self.socket = sock_src
 
     @staticmethod
-    def parse(data):
+    def parse(sock_src, data):
         index = data.index(b"\r\n")
         first_line = data[0:index+2].decode()
         matches_req = re.match(HttpRequest.PATTERN.decode(), first_line)
         matches_res = re.match(HttpResponse.PATTERN.decode(), first_line)
         if matches_req:
-            http_packet = HttpRequest(*matches_req.groups())
+            http_packet = HttpRequest(sock_src, *matches_req.groups())
         elif matches_res:
-            http_packet = HttpResponse(*matches_res.groups())
+            http_packet = HttpResponse(sock_src, *matches_res.groups())
         else:
             return None
 
@@ -43,8 +45,8 @@ class HttpPacket(ABC):
 class HttpRequest(HttpPacket):
     PATTERN = b"([A-Z]+) ([^ ]+) HTTP/([0-9.]+)\r\n"
 
-    def __init__(self, method, uri, version):
-        super().__init__(version)
+    def __init__(self, socket, method, uri, version):
+        super().__init__(socket, version)
         self.method = method
         self.uri = uri
 
@@ -58,8 +60,8 @@ class HttpRequest(HttpPacket):
 class HttpResponse(HttpPacket):
     PATTERN = b"HTTP/([0-9.]+) ([0-9]+) (.*)\r\n"
 
-    def __init__(self, version, status_code, status_text):
-        super().__init__(version)
+    def __init__(self, socket, version, status_code, status_text):
+        super().__init__(socket, version)
         self.status_code = int(status_code)
         self.status_text = status_text
         self.response_to = None
@@ -150,7 +152,7 @@ class TcpConnection:
 
 class TcpConnections:
     def __init__(self):
-        self.connections = {}
+        self.connections = OrderedDict()
 
     def __contains__(self, item: TcpConnection):
         return str(item) in self.connections
@@ -189,7 +191,6 @@ class PcapExtractor:
         self._packets = None
 
     def _open_file(self):
-        # self._packets = pcapkit.extract(fin=self.pcap_path, store=False, nofile=True)
         self._packets = rdpcap(self.pcap_path)
 
     def extract_all(self):
@@ -203,6 +204,15 @@ class PcapExtractor:
                     f.write(packet.payload)
                 
                 print(f"[+] Extracted: {file_path} {util.human_readable_size(len(packet.payload))} Bytes")
+
+    def __iter__(self):
+        self._open_file()
+        http_packets = self._parse_http_packets()
+        self.iter_filtered_packets = self._apply_filters(http_packets)
+        return iter(self.iter_filtered_packets)
+
+    def __next__(self):
+        return next(self.iter_filtered_packets)
 
     def _apply_filters(self, packets):
         filtered_packets = packets
@@ -238,7 +248,8 @@ class PcapExtractor:
                     buff = (next_packet[TCP].seq, raw(next_packet[TCP].payload))
                     # potential TCP ZeroWindowProbe
                     continue
-
+                
+                # TODO: instead of assertions, we should make sure, the seq. is ascending
                 assert next_packet[TCP].seq > prev_seq
                 assert next_packet[IP].frag == 0
                 http_buffer += raw(next_packet[TCP].payload)
@@ -246,7 +257,7 @@ class PcapExtractor:
             else:
                 break
 
-        return HttpPacket.parse(http_buffer)
+        return HttpPacket.parse(sock_src, http_buffer)
 
     def _parse_http_packets(self):
 
@@ -298,7 +309,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output-dir", help="Path to destination directory", default="extracted_files/",
                         dest="output_dir")
     parser.add_argument("-l", "--list", help="List available files only", default=False, action="store_true")
-    parser.add_argument("-e", "--extract", help="Extract files (default)", default=True, action="store_true")
+    parser.add_argument("-e", "--extract", help="Extract files (default)", default=False, action="store_true")
     parser.add_argument("-ec", "--exclude-codes", help="Exclude http status codes, default: 101,304,403,404",
                         default="101,304,403,404", dest="exclude_codes")
     parser.add_argument("-ic", "--include-codes", help="Limit http status codes", type=str,
