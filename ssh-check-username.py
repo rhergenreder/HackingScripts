@@ -10,6 +10,8 @@ import socket
 import sys
 import pdb
 
+# CVE-2018-15473 (OpenSSH 7.7)
+
 class InvalidUsername(Exception):
     pass
 

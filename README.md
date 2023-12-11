@@ -14,9 +14,9 @@ sudo ln -s HackingScripts $(python -c "import sys;print(sys.path[-1])")/hackings
 ### Enumeration: Initial Scans
 - first_scan.sh: Performs initial nmap scan
 - gobuster.sh: Performs gobuster dir scan with raft-large-words-lowercase.txt
-- ssh-check-username.py: Check if user enumeration works for ssh
-- [git-dumper.py](https://github.com/arthaud/git-dumper)
 - subdomainFuzz.sh: Fuzzes subdomains for a given domain
+- [ssh-check-username.py](https://www.exploit-db.com/exploits/45939): Check if user enumeration works for ssh
+- [git-dumper.py](https://github.com/arthaud/git-dumper)
 
 ### Enumeration: Privilege Escalation & Pivoting
 - [LinEnum.sh](https://github.com/rebootuser/LinEnum)
@@ -32,7 +32,7 @@ Can be deployed on victim machines to scan the intranet.
 - [deepce.sh](https://github.com/stealthcopter/deepce): Docker Privilege Escalation (e.g. exposed socket)
 
 ### Reverse Shell: Payloads
-- genRevShell.py: Generates a reverse shell command (e.g. netcat, python, ...)
+- rev_shell.py: Generates a reverse shell command (e.g. netcat, python, ...)
 - [php-reverse-shell.php](https://github.com/pentestmonkey/php-reverse-shell)
 - [p0wny-shell.php](https://github.com/flozz/p0wny-shell)
 - [aspx-reverse-shell.aspx](https://github.com/borjmz/aspx-reverse-shell)
@@ -46,8 +46,14 @@ Can be deployed on victim machines to scan the intranet.
 - util.py: Collection of some small functions
 - fileserver.py: Create a temporary http server serving in-memory files
 - dnsserver.py: Create a temporary dns server responding dynamically to basic DNS requests (in-memory)
+- sshserver.py: Create a temporary ssh server to intercept credentials (TODO: relay) (in-memory)
+- smtpserver.py: Create a temporary smtp server (in-memory)
+- template.py: Creates a template for web exploits, similar to pwnlib's template
+- pcap_file_extract.py: Lists and extracts files from http connections found in pcap files
+- find_git_commit.py: Compares a local repository (e.g. downloaded from a remote server) with another git repository to guess the commit hash. Useful to find used versions
+- TODO: smb
 
-### Windows
+### [Windows](win/)
  - nc.exe/nc64.exe: netcat standalone binary
  - [mimikatz.exe](https://github.com/gentilkiwi/mimikatz)
  - [plink.exe](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html): command line PuTTY client for port forwarding
