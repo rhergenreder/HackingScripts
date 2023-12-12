@@ -98,6 +98,7 @@ class ShellListener:
 
             print("[-] Disconnected")
             self.connection = None
+            self.running = False
 
     def close(self):
         self.running = False
@@ -432,7 +433,7 @@ def wait_for_connection(listener, timeout=None, prompt=True):
         else:
             print(prompt)
 
-    while listener.connection is None:
+    while listener.connection is None and listener.running:
         time.sleep(0.5)
         if timeout is not None:
             diff = time.time() - start

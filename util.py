@@ -321,7 +321,7 @@ def pad(x, n, b=b"\x00", s="r"):
             x = (n-(len(x)%n))*b + x
     return x
 
-def xor(a, b):
+def xor(a, b, *args):
     if isinstance(a, int):
         a = a.to_bytes(math.ceil(math.log(a)/math.log(2)/8.0))
     if isinstance(b, int):
@@ -345,9 +345,12 @@ def xor(a, b):
         if type(b) not in (bytes, bytearray):
             b = b.encode()
 
-        
+    result = b"".join([bytes([c1 ^ c2]) for (c1,c2) in zip(a, b) ])
 
-    return b"".join([bytes([c1 ^ c2]) for (c1,c2) in zip(a, b) ])
+    if len(args) > 0:
+        result = xor(result, *args)
+
+    return result
 
 def base64urldecode(data):
     if isinstance(data, str):
