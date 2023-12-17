@@ -153,7 +153,7 @@ def assert_regex_match(pattern, data, err=None):
         return match
 
     err = f"[-] Data does not match pattern '{pattern}': '{data}'" if err is None else err
-    exit_with_error(res, err)
+    exit_with_error(None, err)
 
 def open_server(address, ports=None, retry=True):
     listen_port = None

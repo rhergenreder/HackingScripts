@@ -1,23 +1,36 @@
 #!/usr/bin/env python
 
 import sys
+import json
+import urllib.parse
 
 def generate_template(base_url, features):
 
+    variables = {
+        "IP_ADDRESS": "util.get_address()", 
+        "BASE_URL": f'"{base_url}" if "LOCAL" not in sys.argv else "http://127.0.0.1:1337"',
+        "PROXIES": json.dumps({"http":"http://127.0.0.1:8080", "https":"http://127.0.0.1:8080"})
+    }
+    
     if "proxies" in features or "burp" in features:
         proxy = """
     if \"proxies\" not in kwargs:
-        kwargs[\"proxies\"] = {\"http\":\"http://127.0.0.1:8080\", \"https\":\"http://127.0.0.1:8080\"}
+        kwargs[\"proxies\"] = PROXIES
 """
     else:
         proxy = ""
 
-    variables = {
-        "BASE_URL": f'"{base_url}" if "LOCAL" not in sys.argv else "http://127.0.0.1:1337"',
-        "IP_ADDRESS": "util.get_address()",
-    }
+    if "vhost" in features or "subdomain" in features:
+        url_parts = urllib.parse.urlparse(base_url)
+        host_name = url_parts.netloc
+        variables["HOST_NAME"] = f"'{host_name}' if \"LOCAL\" not in sys.argv else \"127.0.0.1:1337\""
+        vhost_param = ", vhost=None"
+        full_url = f"f'{url_parts.scheme}://{{vhost}}.{{HOST_NAME}}{{uri}}' if vhost else BASE_URL + uri"
+    else:
+        vhost_param = ""
+        full_url = "BASE_URL + uri"
 
-    request_method = f"""def request(method, uri, **kwargs):
+    request_method = f"""def request(method, uri{vhost_param}, **kwargs):
     if not uri.startswith("/") and uri != "":
         uri = "/" + uri
 
@@ -32,7 +45,8 @@ def generate_template(base_url, features):
     if "verify" not in kwargs:
         kwargs["verify"] = False
     {proxy}
-    return client.request(method, BASE_URL + uri, **kwargs)
+    url = {full_url}
+    return client.request(method, url, **kwargs)
 """
 
     methods = [request_method]
@@ -76,6 +90,7 @@ if __name__ == "__main__":
 # https://git.romanh.de/Roman/HackingScripts
 
 import os
+import io
 import re
 import sys
 import json
@@ -87,7 +102,6 @@ import urllib.parse
 from bs4 import BeautifulSoup
 from hackingscripts import util, rev_shell
 from hackingscripts.fileserver import HttpFileServer
-
 from urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
