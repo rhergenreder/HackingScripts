@@ -101,7 +101,7 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
             if path in self.server.dumpRequests:
                 headers["Access-Control-Allow-Origin"] = "*"
 
-            headers["Content-Length"] = len(data)
+            headers["Content-Length"] = len(util.nvl(data, b""))
 
             if len(headers) == 0:
                 self.send_response(status_code)
@@ -162,7 +162,10 @@ class HttpFileServer(HTTPServer):
 
         return path.strip()
 
-    def addFile(self, name, data, mimeType=None):
+    def addFile(self, name, data, mime_type=None):
+
+        assert isinstance(name, str)
+        assert data is not None
 
         if hasattr(data, "read"):
             fd = data
@@ -176,8 +179,8 @@ class HttpFileServer(HTTPServer):
             "Access-Control-Allow-Origin": "*",
         }
         
-        if mimeType:
-            headers["Content-Type"] = mimeType
+        if mime_type:
+            headers["Content-Type"] = mime_type
 
         # return 200 - OK and data
         self.addRoute(name, lambda req: (200, data, headers))
