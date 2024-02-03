@@ -98,6 +98,8 @@ class ShellListener:
                             print("RECV first prompt")
                     else:
                         self.raw_output += data
+                        for callback in self.on_message:
+                            callback(data)
 
             print("[-] Disconnected")
             self.connection = None

@@ -314,11 +314,12 @@ def rpad(x, n, b=b"\x00"):
     return pad(x, n, b, "r")
 
 def pad(x, n, b=b"\x00", s="r"):
-    if len(x) % n != 0:
+    pad_len = len(x) % n
+    if pad_len != 0:
         if s == "r":
-            x += (n-(len(x)%n))*b
+            x += b * (n - pad_len)
         elif s == "l":
-            x = (n-(len(x)%n))*b + x
+            x = b * (n - pad_len) + x
     return x
 
 def xor(a, b, *args):
