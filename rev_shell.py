@@ -532,8 +532,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Reverse shell generator")
     parser.add_argument(dest="type", type=str, default=None, help="Payload type")
-    parser.add_argument("--port", type=int, required=False, default=None, help="Listening port")
-    parser.add_argument("--addr", type=str, required=False, default=util.get_address(), help="Listening address")
+    parser.add_argument("-p", "--port", type=int, required=False, default=None, help="Listening port")
+    parser.add_argument("-a", "--addr", type=str, required=False, default=util.get_address(), help="Listening address")
     args, extra = parser.parse_known_args()
 
     listen_port = args.port

