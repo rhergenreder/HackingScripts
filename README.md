@@ -7,8 +7,16 @@ I use this repository mostly for automated exploit chains. HackTheBox machines o
 
 ### Installation
 ```bash
-git clone git@romanh.de:Roman/HackingScripts
-sudo ln -s HackingScripts $(python -c "import sys;print(sys.path[-1])")/hackingscripts
+PYTHON_DIR=$(python -c "import sys;print(sys.path[-1])")
+
+# clone directly into python site-packages
+git clone https://git.romanh.de/Roman/HackingScripts.git $PYTHON_DIR/hackingscripts
+# or use a symlink
+git clone https://git.romanh.de/Roman/HackingScripts.git
+sudo ln -s $(pwd)/HackingScripts $PYTHON_DIR/hackingscripts
+
+# Install requirements
+pip3 install -r $PYTHON_DIR/hackingscripts/requirements.txt
 ```
 
 ### Enumeration: Initial Scans
@@ -52,6 +60,7 @@ Can be deployed on victim machines to scan the intranet.
 - pcap_file_extract.py: Lists and extracts files from http connections found in pcap files
 - find_git_commit.py: Compares a local repository (e.g. downloaded from a remote server) with another git repository to guess the commit hash. Useful to find used versions
 - TODO: smb
+- sqli.py: An abstract class for automizing SQL-Injections (WIP)
 
 ### [Windows](win/)
  - nc.exe/nc64.exe: netcat standalone binary
@@ -64,3 +73,6 @@ Can be deployed on victim machines to scan the intranet.
  - [windows-exploit-suggester.py](https://github.com/AonCyberLabs/Windows-Exploit-Suggester)
  - [aspx-reverse-shell.aspx](https://github.com/borjmz/aspx-reverse-shell)
  - [xp_cmdshell.py](https://github.com/0xalwayslucky/pentesting-tools) (thanks to @alwayslucky)
+
+### Example API-Usage
+TODO: Add some example code or bash commands on how to use the custom libraries, e.g. fileserver, xss_handler, etc.
