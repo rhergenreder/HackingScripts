@@ -73,9 +73,10 @@ Can be deployed on victim machines to scan the intranet.
  - [SharpHound.exe](https://github.com/BloodHoundAD/SharpHound3): BloodHound Ingestor
  - [windows-exploit-suggester.py](https://github.com/AonCyberLabs/Windows-Exploit-Suggester)
  - [aspx-reverse-shell.aspx](https://github.com/borjmz/aspx-reverse-shell)
- - [xp_cmdshell.py](https://github.com/0xalwayslucky/pentesting-tools) (thanks to @alwayslucky)
+ - [xp_cmdshell.py](https://github.com/0xalwayslucky/pentesting-tools) (thanks to [@alwayslucky](https://github.com/0xalwayslucky))
  - [PetitPotam.py](https://github.com/topotam/PetitPotam)
  - [socat.exe](https://github.com/3ndG4me/socat)
+ - TODO: add all Potatoes
 
 ### Example API-Usage
 TODO: Add some example code or bash commands on how to use the custom libraries, e.g. fileserver, xss_handler, etc.
