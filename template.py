@@ -102,6 +102,7 @@ import urllib.parse
 from bs4 import BeautifulSoup
 from hackingscripts import util, rev_shell
 from hackingscripts.fileserver import HttpFileServer
+from hackingscripts.sqli import MySQLi, PostgreSQLi
 from urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 

