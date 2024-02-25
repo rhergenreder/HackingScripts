@@ -61,7 +61,7 @@ Can be deployed on victim machines to scan the intranet.
 - pcap_file_extract.py: Lists and extracts files from http connections found in pcap files
 - find_git_commit.py: Compares a local repository (e.g. downloaded from a remote server) with another git repository to guess the commit hash. Useful to find used versions
 - TODO: smb
-- sqli.py: An abstract class for automizing SQL-Injections (WIP)
+- sqli.py: An sqlmap-like abstract class for automizing SQL-Injections (WIP)
 
 ### [Windows](win/)
  - nc.exe/nc64.exe: netcat standalone binary
