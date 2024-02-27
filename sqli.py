@@ -86,6 +86,7 @@ class ReflectedSQLi(SQLi, ABC):
         return self.reflected_sqli(query_columns, table, condition, offset)[str_column]
 
     def extract_multiple_ints(self, columns: list|str, table=None, condition=None, verbose=False):
+        one = False
         if isinstance(columns, str):
             columns = [columns]
             one = True
@@ -112,6 +113,7 @@ class ReflectedSQLi(SQLi, ABC):
         return rows
 
     def extract_multiple_strings(self, columns: list|str, table=None, condition=None, verbose=False):
+        one = False
         if isinstance(columns, str):
             columns = [columns]
             one = True
