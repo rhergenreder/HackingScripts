@@ -91,14 +91,23 @@ class FileServerRequestHandler(BaseHTTPRequestHandler):
                 status_code = 200 if len(result) < 1 else result[0]
                 data        = b"" if len(result) < 2 else result[1]
                 headers     = { } if len(result) < 3 else result[2]
-            else:
+            elif isinstance(result, int):
                 status_code = result
                 data = b""
+                headers = {}
+            elif result is None:
+                status_code = 201
+                data = b""
+                headers = {}
+            else:
+                status_code = 200
+                data = data if type(data) in [bytes, bytearray] else str(data).encode()
                 headers = {}
 
             if path in self.server.dumpRequests:
                 headers["Access-Control-Allow-Origin"] = "*"
-
+            
+            headers["Connection"] = "Close"
             headers["Content-Length"] = len(util.nvl(data, b""))
 
             if len(headers) == 0:
@@ -174,7 +183,7 @@ class HttpFileServer(HTTPServer):
             data = data.encode("UTF-8")
     
         headers = { 
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": "*"
         }
         
         if mime_type:
