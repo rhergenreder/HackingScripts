@@ -6,8 +6,13 @@ import urllib.parse
 
 def generate_template(base_url, features):
 
+    ip_address = "util.get_address()"
+    for feature in features:
+        if feature.lower().startswith("ip_address="):
+            ip_address = "'" + feature.split("=")[1] + "'"
+
     variables = {
-        "IP_ADDRESS": "util.get_address()", 
+        "IP_ADDRESS": ip_address, 
         "BASE_URL": f'"{base_url}" if "LOCAL" not in sys.argv else "http://127.0.0.1:1337"',
         "PROXIES": json.dumps({"http":"http://127.0.0.1:8080", "https":"http://127.0.0.1:8080"})
     }

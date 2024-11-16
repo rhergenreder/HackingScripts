@@ -46,6 +46,7 @@ if __name__ == "__main__":
 
     print("[+] Now listening, download file using:")
     print('nc %s %d > %s' % (address, listen_sock.getsockname()[1], os.path.basename(path)))
+    print('python -c \'import socket;sock=socket.socket(socket.AF_INET,socket.SOCK_STREAM,0);sock.connect(("%s",%d));sock.sendall(open("%s","rb").read())\'' % (address, listen_sock.getsockname()[1], os.path.basename(path)))
     print()
 
     serve_file(listen_sock, path, forever=True)

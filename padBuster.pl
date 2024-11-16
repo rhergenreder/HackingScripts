@@ -642,7 +642,8 @@ sub makeRequest {
   $lwp = LWP::UserAgent->new(env_proxy => 1,
                             keep_alive => 1,
                             timeout => 30,
-			    requests_redirectable => [],
+			    			requests_redirectable => [],
+							ssl_opts => { verify_hostname => 0, SSL_verify_mode => 0 },
                             );
 
   $req = new HTTP::Request $method => $url;

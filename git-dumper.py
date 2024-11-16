@@ -292,9 +292,14 @@ class FindObjectsWorker(DownloadWorker):
         with open(abspath, 'wb') as f:
             f.write(response.content)
 
-        # parse object file to find other objects
-        obj_file = dulwich.objects.ShaFile.from_path(abspath)
-        return get_referenced_sha1(obj_file)
+        try:
+            # parse object file to find other objects
+            obj_file = dulwich.objects.ShaFile.from_path(abspath)
+            return get_referenced_sha1(obj_file)
+        except:
+            print("[-] Error parsing:", filepath)
+            os.remove(abspath)
+            return []
 
 
 def fetch_git(url, directory, jobs, retry, timeout, follow_redirects, module=".git"):

