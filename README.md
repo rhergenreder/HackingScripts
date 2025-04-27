@@ -57,7 +57,7 @@ Can be deployed on victim machines to scan the intranet.
 - dnsserver.py: Create a temporary dns server responding dynamically to basic DNS requests (in-memory)
 - sshserver.py: Create a temporary ssh server to intercept credentials (TODO: relay) (in-memory)
 - smtpserver.py: Create a temporary smtp server (in-memory)
-- ftpserver.py: Create a temporary ftp server (in-memory, thanks to @thanks to [@benzammour](https://github.com/benzammour))
+- ftpserver.py: Create a temporary ftp server (in-memory, thanks to [@benzammour](https://github.com/benzammour))
 - template.py: Creates a template for web exploits, similar to pwnlib's template
 - pcap_file_extract.py: Lists and extracts files from http connections found in pcap files
 - find_git_commit.py: Compares a local repository (e.g. downloaded from a remote server) with another git repository to guess the commit hash. Useful to find used versions
