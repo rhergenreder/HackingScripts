@@ -52,13 +52,13 @@ download https://raw.githubusercontent.com/topotam/PetitPotam/main/PetitPotam.py
 
 echo ""
 echo "Updating LinPEAS + WinPEAS…"
-peas_version=$(get_latest_version carlospolop/PEASS-ng)
+peas_version=$(get_latest_version peass-ng/PEASS-ng)
 if [ ! -z "$peas_version" ]; then
   echo "Got PEAS version: $peas_version"
-  download https://github.com/carlospolop/PEASS-ng/releases/download/$peas_version/linpeas.sh linpeas.sh
-  download https://github.com/carlospolop/PEASS-ng/releases/download/$peas_version/winPEASx86.exe win/winPEAS.exe
-  download https://github.com/carlospolop/PEASS-ng/releases/download/$peas_version/winPEASx64.exe win/winPEASx64.exe
-  download https://github.com/carlospolop/PEASS-ng/releases/download/$peas_version/winPEAS.bat win/winPEAS.bat
+  download https://github.com/peass-ng/PEASS-ng/releases/download/$peas_version/linpeas.sh linpeas.sh
+  download https://github.com/peass-ng/PEASS-ng/releases/download/$peas_version/winPEASx86.exe win/winPEAS.exe
+  download https://github.com/peass-ng/PEASS-ng/releases/download/$peas_version/winPEASx64.exe win/winPEASx64.exe
+  download https://github.com/peass-ng/PEASS-ng/releases/download/$peas_version/winPEAS.bat win/winPEAS.bat
 else
   echo "Unable to determine latest PEAS version"
 fi
