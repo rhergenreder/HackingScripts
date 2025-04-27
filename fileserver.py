@@ -285,8 +285,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Spawn a temporary http server")
     parser.add_argument(
         "action",
-        choices=["shell", "dump", "proxy", "xss"],
-        help="Choose one of these actions: shell, dump, proxy, xss"
+        choices=["shell", "dump", "proxy", "xss", "start"],
+        help="Choose one of these actions: shell, dump, proxy, xss, start"
     )
 
     parser.add_argument(
@@ -297,7 +297,6 @@ if __name__ == "__main__":
         help="Address to bind on (default: 0.0.0.0)"
     )
 
-    # Optionales Argument: port
     parser.add_argument(
         "--port",
         type=int,
@@ -337,5 +336,9 @@ if __name__ == "__main__":
         file_server.dumpRequest("/exfiltrate")
         print("Exfiltrate data using:")
         print(xss)
+    elif args.action == "start":
+        file_server.load_directory(".")
+        print("Serve files in current directory using:")
+        print(file_server.get_full_url("/", ip_addr=ip_address))
 
     file_server.serve_forever()
