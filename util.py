@@ -135,6 +135,9 @@ def assert_json_path(res, path, value, err=None):
 
     json_data = json.loads(res.text)
     for key in filter(None, path.split(".")):
+        match = re.match(r"\[([0-9]+)\]", key)
+        if match:
+            key = int(match[1])
         json_data = json_data[key]
 
     if json_data == value:
