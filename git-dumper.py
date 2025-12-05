@@ -530,7 +530,7 @@ if __name__ == '__main__':
                                      description='Dump a git repository from a website.')
     parser.add_argument('url', metavar='URL',
                         help='url')
-    parser.add_argument('directory', metavar='DIR',
+    parser.add_argument('--directory', metavar='DIR', default=None, type=str,
                         help='output directory')
     parser.add_argument('--proxy',
                         help='use the specified proxy')
@@ -577,6 +577,13 @@ if __name__ == '__main__':
             parser.error('invalid proxy')
 
     # output directory
+    if args.directory is None:
+        parsed_url = urllib.parse.urlparse(args.url)
+        if not parsed_url or not parsed_url.hostname:
+            parser.error('no output directory given and cannot derive from URL')
+        else:
+            args.directory = parsed_url.hostname
+
     if not os.path.exists(args.directory):
         os.makedirs(args.directory)
 

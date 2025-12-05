@@ -5,12 +5,13 @@ import string
 class SQLi(ABC):
 
     @staticmethod
-    def build_query(column: str|list, table=None, condition=None, offset=None):
+    def build_query(column: str|list, table=None, condition=None, offset=None, limit=1):
         column = column if isinstance(column, str) else ",".join(column)
         condition = "" if not condition else f" WHERE {condition}"
         offset = "" if offset is None else f" OFFSET {offset}"
         table = "" if not table else f" FROM {table}"
-        return f"SELECT {column}{table}{condition} LIMIT 1{offset}"
+        limit = "" if limit is None else f" LIMIT {limit}"
+        return f"SELECT {column}{table}{condition}{limit}{offset}"
 
     def extract_multiple_ints(self, column: str, table=None, condition=None, verbose=False):
         row_count = self.extract_int(f"COUNT({column})", table=table, condition=condition, verbose=verbose)
